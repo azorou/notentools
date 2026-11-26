@@ -1,1436 +1,250 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" data-theme="auto">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Noten- &amp; Prüfungs-Rechner</title>
-    <style>
-        :root {
-            --bg: #f4f6f9;
-            --card: #ffffff;
-            --text: #0f172a;
-            --muted: #64748b;
-            --primary: #2563eb;
-            --primary-soft: #eff6ff;
-            --border: #e2e8f0;
-            --ok-bg: #dcfce7;
-            --ok-text: #166534;
-            --ok-border: #86efac;
-            --no-bg: #fee2e2;
-            --no-text: #991b1b;
-            --no-border: #fca5a5;
-            --warn-bg: #fef2f2;
-            --warn-text: #b91c1c;
-        }
-
-        * { box-sizing: border-box; }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 14px;
-            font-size: 0.93rem;
-            line-height: 1.45;
-        }
-
-        .container {
-            max-width: 960px;
-            margin: 0 auto;
-        }
-
-        header {
-            margin-bottom: 14px;
-        }
-        h1 { font-size: 1.35rem; margin: 0 0 2px 0; }
-        .subtitle { color: var(--muted); font-size: 0.84rem; margin: 0; }
-
-        details.card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            margin-bottom: 14px;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-            overflow: hidden;
-        }
-
-        details.card > summary {
-            list-style: none;
-            cursor: pointer;
-            padding: 11px 16px;
-            font-weight: 700;
-            font-size: 1.02rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            background: #fff;
-            user-select: none;
-        }
-        details.card > summary::-webkit-details-marker { display: none; }
-        details.card > summary::after {
-            content: "▾";
-            color: var(--muted);
-            font-size: 1rem;
-            transition: transform 0.15s ease;
-        }
-        details.card:not([open]) > summary::after { transform: rotate(-90deg); }
-        details.card[open] > summary { border-bottom: 1px solid var(--border); }
-
-        .card-body { padding: 14px 16px; }
-
-        details.box-panel {
-            background: #f8fafc;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-
-        details.box-panel > summary {
-            list-style: none;
-            cursor: pointer;
-            padding: 8px 12px;
-            font-weight: 600;
-            font-size: 0.85rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            user-select: none;
-        }
-        details.box-panel > summary::-webkit-details-marker { display: none; }
-        details.box-panel > summary::after {
-            content: "▾";
-            color: var(--muted);
-        }
-        details.box-panel:not([open]) > summary::after { transform: rotate(-90deg); }
-        .box-panel-body { padding: 10px 12px; border-top: 1px solid var(--border); }
-
-        label {
-            display: block;
-            font-size: 0.8rem;
-            font-weight: 600;
-            margin-bottom: 4px;
-            color: var(--text);
-        }
-
-        input[type="text"], input[type="number"], select {
-            width: 100%;
-            padding: 7px 10px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            font-size: 0.92rem;
-            background: #fff;
-            color: var(--text);
-        }
-
-        input[type="range"] {
-            width: 100%;
-            accent-color: var(--primary);
-            cursor: pointer;
-            margin: 4px 0;
-        }
-
-        input:focus, select:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-        }
-
-        .row-4 {
-            display: grid;
-            grid-template-columns: 110px 125px 1fr 1.3fr;
-            gap: 10px;
-            margin-bottom: 10px;
-            align-items: start;
-        }
-
-        .row-3 {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-
-        .row-2 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-
-        @media (max-width: 780px) {
-            .row-4 { grid-template-columns: 1fr 1fr; }
-        }
-        @media (max-width: 560px) {
-            .row-4, .row-3, .row-2 { grid-template-columns: 1fr; }
-        }
-
-        .stats-strip {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 10px;
-            background: var(--primary-soft);
-            border: 1px solid #bfdbfe;
-            border-radius: 8px;
-            padding: 10px 12px;
-            margin-top: 10px;
-        }
-
-        .stat-box span {
-            display: block;
-            font-size: 0.74rem;
-            color: var(--muted);
-        }
-
-        .stat-box strong {
-            display: block;
-            font-size: 1.08rem;
-            color: var(--primary);
-        }
-
-        .stat-box small {
-            display: block;
-            font-size: 0.74rem;
-            color: var(--text);
-            margin-top: 1px;
-        }
-
-        .btn {
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 6px 11px;
-            font-size: 0.82rem;
-            font-weight: 600;
-            cursor: pointer;
-            color: var(--text);
-        }
-        .btn:hover { background: #f1f5f9; }
-        .btn-primary {
-            background: var(--primary);
-            border-color: var(--primary);
-            color: #fff;
-        }
-        .btn-primary:hover { background: #1d4ed8; }
-        .btn-danger { color: var(--warn-text); }
-
-        .toolbar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-bottom: 8px;
-        }
-
-        .grid-6 {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 6px;
-        }
-        @media (max-width: 560px) {
-            .grid-6 { grid-template-columns: repeat(3, 1fr); }
-        }
-
-        .cat-pill {
-            user-select: none;
-            border: 1px solid var(--border);
-            background: #fff;
-            border-radius: 6px;
-            padding: 6px 4px;
-            text-align: center;
-            cursor: pointer;
-            font-size: 0.8rem;
-        }
-        .cat-pill.state-must {
-            background: var(--ok-bg);
-            border-color: var(--ok-border);
-            color: var(--ok-text);
-            font-weight: 700;
-        }
-        .cat-pill.state-none {
-            background: var(--no-bg);
-            border-color: var(--no-border);
-            color: var(--no-text);
-            text-decoration: line-through;
-        }
-
-        .exact-box {
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 6px;
-            text-align: center;
-        }
-        .exact-box label { font-size: 0.74rem; margin-bottom: 3px; }
-        .exact-box input { padding: 4px 6px; text-align: center; font-size: 0.86rem; }
-
-        .radar-grid {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 6px;
-        }
-        @media (max-width: 560px) {
-            .radar-grid { grid-template-columns: repeat(3, 1fr); }
-        }
-        .radar-box {
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 6px;
-            text-align: center;
-        }
-        .radar-box .r-title { font-size: 0.74rem; color: var(--muted); font-weight: 600; }
-        .radar-box .r-prob { font-size: 0.95rem; font-weight: 700; color: var(--primary); }
-        .radar-box .r-exp { font-size: 0.74rem; color: var(--muted); }
-
-        .table-wrap { overflow-x: auto; margin-top: 8px; }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.84rem;
-        }
-        th, td {
-            padding: 6px 6px;
-            border-bottom: 1px solid var(--border);
-            text-align: center;
-        }
-        th {
-            background: #f1f5f9;
-            font-weight: 600;
-            color: var(--muted);
-            white-space: nowrap;
-        }
-
-        td.grades-seq {
-            text-align: left;
-            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-            font-size: 0.78rem;
-            line-height: 1.35;
-            min-width: 200px;
-        }
-
-        .g-known {
-            display: inline-block;
-            background: #dbeafe;
-            color: #1e40af;
-            font-weight: 700;
-            padding: 0 4px;
-            border-radius: 3px;
-            margin: 1px;
-        }
-        .g-est {
-            display: inline-block;
-            color: #334155;
-            padding: 0 2px;
-            margin: 1px;
-        }
-
-        td.prob-cell {
-            text-align: right;
-            font-weight: 700;
-            color: var(--primary);
-            min-width: 76px;
-            white-space: nowrap;
-        }
-        .bar-bg {
-            width: 100%;
-            background: #e2e8f0;
-            height: 4px;
-            border-radius: 2px;
-            margin-top: 3px;
-            overflow: hidden;
-        }
-        .bar-fill { height: 100%; background: var(--primary); }
-
-        .key-input-inline {
-            width: 82px !important;
-            padding: 4px 6px !important;
-            text-align: right;
-            font-size: 0.84rem !important;
-            display: inline-block;
-        }
-
-        .info-msg {
-            margin-top: 8px;
-            padding: 8px 11px;
-            border-radius: 6px;
-            background: #f1f5f9;
-            font-size: 0.82rem;
-            color: var(--muted);
-        }
-        .error-msg {
-            background: var(--warn-bg);
-            color: var(--warn-text);
-            border: 1px solid #fecaca;
-        }
-        .hint {
-            font-size: 0.76rem;
-            color: var(--muted);
-            margin-top: 3px;
-        }
-
-        .exam-card {
-            border: 1px solid var(--border);
-            background: #fff;
-            border-radius: 8px;
-            padding: 10px 12px;
-            margin-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        .exam-meta { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>NotenApp</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<div class="container">
-    <header>
-        <h1>Noten- &amp; Prüfungs-Rechner</h1>
-        <p class="subtitle">Übersichtliche Auswertung für Schulaufgaben &amp; Prüfungen (Noten 1–6, Punkte in 0,5er-Schritten)</p>
+<div class="app-shell">
+    <!-- TOP APP BAR -->
+    <header class="topbar">
+        <div>
+            <h1 class="app-title">NotenApp</h1>
+            <p class="app-sub" id="headerSubtitle">Fächer, Schnitte &amp; Analyse</p>
+        </div>
+        <div class="topbar-actions">
+            <button type="button" class="icon-btn" id="installBtn" style="display:none;" title="App installieren">Installieren</button>
+            <button type="button" class="icon-btn" onclick="cycleTheme()" id="themeBtn" title="Design wechseln">🌓 Auto</button>
+        </div>
     </header>
 
-    <!-- 1. TATSÄCHLICHE NOTEN & DURCHSCHNITT -->
-    <details class="card" open>
-        <summary>
-            <span>1. Prüfungswerte &amp; tatsächliche Streuung</span>
-            <span id="badgeSec1" style="font-size:0.82rem; color:var(--primary); font-weight:600; margin-left:auto; margin-right:8px;"></span>
-        </summary>
-        <div class="card-body">
-            <label for="liveGradesInput">Eingegebene Noten der Prüfung (1–6, z.B. „123214“ oder „1 2 3 2 1“):</label>
-            <input type="text" id="liveGradesInput" placeholder="Noten eintippen..." oninput="updateLiveStats()">
+    <!-- MAIN SCROLL AREA -->
+    <main class="main-content">
 
-            <div class="stats-strip">
-                <div class="stat-box">
-                    <span>Schnitt (Ø)</span>
-                    <strong id="outAvg">-</strong>
-                    <small id="outCount">0 Noten</small>
+        <!-- TAB 1: FÄCHER & GESAMTSCHNITT (NOTAN-STIL) -->
+        <section id="view-subjects" class="tab-view active">
+            <!-- GESAMTSCHNITT-BANNER -->
+            <div class="hero-summary">
+                <div class="hero-metric">
+                    <span class="hero-label">Gesamtschnitt</span>
+                    <strong class="hero-value" id="overallAvgAll">–</strong>
+                    <small class="hero-meta" id="overallMetaAll">Noch keine Noten</small>
                 </div>
-                <div class="stat-box">
-                    <span>Tatsächliche Streuung</span>
-                    <strong id="outActualSpread">-</strong>
-                    <small id="outActualSpreadDesc">Noch keine Noten</small>
-                </div>
-                <div class="stat-box">
-                    <span>Schiefe der Prüfung</span>
-                    <strong id="outActualSkew">-</strong>
-                    <small id="outActualSkewDesc">Noch keine Noten</small>
-                </div>
-                <div class="stat-box">
-                    <span>Beste / Schlechteste</span>
-                    <strong id="outMinMax">-</strong>
-                    <small id="outMirror">Spiegel: -</small>
-                </div>
-            </div>
-            <div id="liveParsedInfo" class="hint"></div>
-        </div>
-    </details>
-
-    <!-- 2. WAHRSCHEINLICHSTE NOTENVERTEILUNG -->
-    <details class="card" open>
-        <summary>
-            <span>2. Wahrscheinlichste Notenverteilung (Live)</span>
-            <span id="badgeSec2" style="font-size:0.82rem; color:var(--muted); font-weight:500; margin-left:auto; margin-right:8px;"></span>
-        </summary>
-        <div class="card-body">
-            <div class="row-4">
-                <div>
-                    <label for="classSizeInput">Arbeiten (N)</label>
-                    <input type="number" id="classSizeInput" value="25" min="1" max="60" step="1" oninput="scheduleDistributionUpdate()">
-                </div>
-                <div>
-                    <label for="classAvgInput">Schnitt (Ø)</label>
-                    <input type="text" id="classAvgInput" value="2,68" oninput="scheduleDistributionUpdate()">
-                    <div class="hint" id="decimalsHint">2 Nachkommast.</div>
-                </div>
-                <div>
-                    <label for="spreadRange">Erwartete Streuung: <strong id="spreadVal" style="color:var(--primary);">1,00</strong></label>
-                    <input type="range" id="spreadRange" min="0.55" max="1.75" step="0.05" value="1.00" oninput="scheduleDistributionUpdate()">
-                    <div class="hint" id="spreadLabelHint">Normal verteilt</div>
-                </div>
-                <div>
-                    <label for="knownGradesInput">Bekannte Einzelnoten</label>
-                    <input type="text" id="knownGradesInput" placeholder="z.B. 312243 (optional)" oninput="scheduleDistributionUpdate()">
-                    <div class="hint" id="knownStatusHint">0 bekannt, 25 offen</div>
+                <div class="hero-divider"></div>
+                <div class="hero-metric">
+                    <span class="hero-label">Vorrückungsfächer</span>
+                    <strong class="hero-value accent" id="overallAvgAdv">–</strong>
+                    <small class="hero-meta" id="overallMetaAdv">Ohne „Kein Vorrückungsfach“</small>
                 </div>
             </div>
 
-            <!-- AUSKLAPPBAR: SCHIEFE, STREUUNG & NOTEN-VORGABEN -->
-            <details class="box-panel">
-                <summary>
-                    <span>Verteilung filtern (leicht/schwer, Streuung, bekannte Mengen &amp; Notenarten)</span>
-                    <span id="filterActiveSummary" style="font-size:0.78rem; color:var(--primary); margin-left:auto; margin-right:8px;">Standard</span>
-                </summary>
-                <div class="box-panel-body">
-                    <div class="row-2" style="margin-bottom:10px;">
+            <!-- NEUES FACH ANLEGEN -->
+            <details class="card-panel" open>
+                <summary><span>+ Neues Fach anlegen</span></summary>
+                <div class="panel-body">
+                    <div class="form-grid-4">
                         <div>
-                            <label for="skewFilterSelect">Tendenz der Prüfung (Schiefe)</label>
-                            <select id="skewFilterSelect" onchange="scheduleDistributionUpdate()">
-                                <option value="any">Alle Varianten anzeigen</option>
-                                <option value="light">Eher leicht (viele gute Noten / 1–3)</option>
-                                <option value="balanced">Ausgeglichen (gleichmäßige Kurve)</option>
-                                <option value="heavy">Eher schwer (viele schwächere Noten / 4–6)</option>
+                            <label for="newSubName">Fachname</label>
+                            <input type="text" id="newSubName" placeholder="z.B. Mathematik">
+                        </div>
+                        <div>
+                            <label for="newSubType">Fachart</label>
+                            <select id="newSubType" onchange="toggleNewSubDefaults()">
+                                <option value="haupt">Hauptfach (SA + kleine LN)</option>
+                                <option value="neben">Nebenfach (große/kleine LN)</option>
                             </select>
                         </div>
                         <div>
-                            <label for="spreadFilterSelect">Streuung der vorgeschlagenen Treffer</label>
-                            <select id="spreadFilterSelect" onchange="scheduleDistributionUpdate()">
-                                <option value="any">Alle Streuungen</option>
-                                <option value="tight">Eng beieinander (wenig Ausreißer)</option>
-                                <option value="medium">Mittel (typische Klasse)</option>
-                                <option value="wide">Stark gestreut (große Unterschiede)</option>
+                            <label for="newSubRatio">SA-Verhältnis (Hauptfach)</label>
+                            <select id="newSubRatio">
+                                <option value="2:1">Schulaufgaben 2 : 1 kleine LN</option>
+                                <option value="1:1">Schulaufgaben 1 : 1 kleine LN</option>
                             </select>
                         </div>
+                        <div class="check-col">
+                            <label class="checkbox-row">
+                                <input type="checkbox" id="newSubNotAdv">
+                                <span>Kein Vorrückungsfach</span>
+                            </label>
+                        </div>
                     </div>
-
-                    <div class="toolbar">
-                        <button type="button" class="btn" onclick="applyPreset('all')">Alle Noten (1–6) kamen vor</button>
-                        <button type="button" class="btn" onclick="applyPreset('no6')">Keine 6</button>
-                        <button type="button" class="btn" onclick="applyPreset('no56')">Keine 5 &amp; 6</button>
-                        <button type="button" class="btn btn-danger" onclick="applyPreset('reset')">Vorgaben zurücksetzen</button>
-                    </div>
-
-                    <div class="grid-6" id="categoryGrid"></div>
-                    <div class="hint" style="margin:5px 0 10px 0;">
-                        Klick wechselt: <strong>?</strong> (offen) · <strong style="color:#166534;">✓ ≥1×</strong> (mind. 1×) · <strong style="color:#991b1b;">✕ 0×</strong> (gar nicht)
-                    </div>
-
-                    <label>Sichere Anzahl pro Note (z.B. „Ich weiß sicher, es gibt 2 Zweien“):</label>
-                    <div class="grid-6" id="exactCountsGrid"></div>
+                    <button type="button" class="btn btn-primary" onclick="addSubject()">Fach hinzufügen</button>
                 </div>
             </details>
 
-            <div id="distributionOutput"></div>
-        </div>
-    </details>
+            <!-- FÄCHERLISTE -->
+            <div id="subjectsContainer"></div>
+        </section>
 
-    <!-- 3. PUNKTEVERTEILUNG (VERÄNDERBAR MIT AUTOMATISCHER ANPASSUNG) -->
-    <details class="card">
-        <summary>
-            <span>3. Punkteverteilung &amp; Notenschlüssel (änderbar)</span>
-            <span id="badgeSec3" style="font-size:0.82rem; color:var(--primary); font-weight:600; margin-left:auto; margin-right:8px;"></span>
-        </summary>
-        <div class="card-body">
-            <div class="row-3">
-                <div>
-                    <label for="maxPtsInput">Maximalpunkte (0,5 / 1,0)</label>
-                    <input type="number" id="maxPtsInput" value="60" min="0.5" step="0.5" oninput="recalcKeyFromMax()">
-                </div>
-                <div>
-                    <label for="gotPtsInput">Eigene Punkte (0,5 / 1,0)</label>
-                    <input type="number" id="gotPtsInput" value="46" min="0" step="0.5" oninput="renderKeyTable()">
-                </div>
-                <div style="display:flex; align-items:flex-end; gap:6px;">
-                    <button type="button" class="btn" onclick="resetKeyDefaults()" style="width:100%;">Standard-Schlüssel wiederherstellen</button>
-                </div>
-            </div>
-            <div class="hint" style="margin-bottom:8px;">
-                Ändere eine <strong>Mindestpunktzahl</strong> (in 0,5er-Schritten) oder <strong>%</strong> – die anderen nicht fixierten Grenzen passen sich automatisch an. Mit <strong>Fix</strong> sperrst du eine Note gegen automatische Anpassung.
-            </div>
-            <div id="keySummaryBox"></div>
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Note</th>
-                            <th>Ab % (änderbar)</th>
-                            <th>Ab Punkte (0,5er)</th>
-                            <th>Fixiert</th>
-                        </tr>
-                    </thead>
-                    <tbody id="keyTableBody"></tbody>
-                </table>
-            </div>
-        </div>
-    </details>
-
-    <!-- 4. KOMPLETTE PRÜFUNG SPEICHERN, VERGLEICHEN & VERLAUF -->
-    <details class="card" open>
-        <summary>
-            <span>4. Prüfung speichern, vergleichen &amp; Verlauf</span>
-            <span id="badgeSec4" style="font-size:0.82rem; color:var(--muted); font-weight:500; margin-left:auto; margin-right:8px;"></span>
-        </summary>
-        <div class="card-body">
-            <div style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px;">
-                <div style="flex:1; min-width:200px;">
-                    <label for="fullExamName">Prüfungsname (speichert Noten, Verteilung, Punkte &amp; Schlüssel zusammen)</label>
-                    <input type="text" id="fullExamName" placeholder="z.B. Englisch Schulaufgabe 2">
-                </div>
-                <button type="button" class="btn btn-primary" onclick="saveFullExam()">Komplette Prüfung speichern</button>
-            </div>
-
-            <details class="box-panel">
-                <summary><span>Zwei Prüfungen / Notenreihen direkt vergleichen</span></summary>
-                <div class="box-panel-body">
-                    <div class="row-2">
+        <!-- TAB 2: VERTEILUNGS-RECHNER -->
+        <section id="view-distribution" class="tab-view">
+            <details class="card-panel" open>
+                <summary><span>Live-Notenverteilung (Klassenspiegel)</span></summary>
+                <div class="panel-body">
+                    <div class="form-grid-4">
                         <div>
-                            <label for="cmpAInput">Prüfung / Reihe A</label>
-                            <input type="text" id="cmpAInput" placeholder="z.B. 122334" oninput="updateComparison()">
+                            <label for="distN">Anzahl Arbeiten</label>
+                            <input type="number" id="distN" min="1" max="60" step="1" placeholder="z.B. 25" oninput="scheduleDist()">
                         </div>
                         <div>
-                            <label for="cmpBInput">Prüfung / Reihe B</label>
-                            <input type="text" id="cmpBInput" placeholder="z.B. 223344" oninput="updateComparison()">
+                            <label for="distAvg">Schnitt (Ø)</label>
+                            <input type="text" id="distAvg" placeholder="z.B. 2,68" oninput="scheduleDist()">
+                        </div>
+                        <div>
+                            <label for="distSigma">Streuung: <strong id="distSigmaVal">1,00</strong></label>
+                            <input type="range" id="distSigma" min="0.55" max="1.75" step="0.05" value="1.00" oninput="scheduleDist()">
+                        </div>
+                        <div>
+                            <label for="distKnown">Bekannte Einzelnoten</label>
+                            <input type="text" id="distKnown" placeholder="z.B. 312243" oninput="scheduleDist()">
                         </div>
                     </div>
-                    <div id="compareOutput"></div>
+
+                    <details class="sub-panel">
+                        <summary><span>Filter (leicht/schwer, Streuung, bekannte Mengen &amp; Kategorien)</span></summary>
+                        <div class="sub-panel-body">
+                            <div class="form-grid-2" style="margin-bottom:8px;">
+                                <div>
+                                    <label for="distSkewFilter">Tendenz der Prüfung</label>
+                                    <select id="distSkewFilter" onchange="scheduleDist()">
+                                        <option value="any">Alle Varianten</option>
+                                        <option value="light">Eher leicht (1–3)</option>
+                                        <option value="balanced">Ausgeglichen</option>
+                                        <option value="heavy">Eher schwer (4–6)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="distSpreadFilter">Streuung der Treffer</label>
+                                    <select id="distSpreadFilter" onchange="scheduleDist()">
+                                        <option value="any">Alle Streuungen</option>
+                                        <option value="tight">Eng beieinander</option>
+                                        <option value="medium">Mittel</option>
+                                        <option value="wide">Stark gestreut</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="toolbar">
+                                <button type="button" class="btn btn-sm" onclick="applyDistPreset('all')">Alle (1–6) kamen vor</button>
+                                <button type="button" class="btn btn-sm" onclick="applyDistPreset('no6')">Keine 6</button>
+                                <button type="button" class="btn btn-sm" onclick="applyDistPreset('no56')">Keine 5 &amp; 6</button>
+                                <button type="button" class="btn btn-sm btn-danger" onclick="applyDistPreset('reset')">Reset</button>
+                            </div>
+                            <div class="grid-6" id="distCatGrid"></div>
+                            <div class="grid-6" id="distExactGrid" style="margin-top:8px;"></div>
+                        </div>
+                    </details>
+
+                    <div id="distOutput"></div>
+                </div>
+            </details>
+        </section>
+
+        <!-- TAB 3: PUNKTE-SCHLÜSSEL & VERGLEICH -->
+        <section id="view-tools" class="tab-view">
+            <details class="card-panel" open>
+                <summary><span>Punkteverteilung &amp; Notenschlüssel (0,5er-Schritte)</span></summary>
+                <div class="panel-body">
+                    <div class="form-grid-3">
+                        <div>
+                            <label for="keyMaxPts">Maximalpunkte</label>
+                            <input type="number" id="keyMaxPts" min="0.5" step="0.5" placeholder="z.B. 60" oninput="syncKeyFromMax()">
+                        </div>
+                        <div>
+                            <label for="keyGotPts">Eigene Punkte</label>
+                            <input type="number" id="keyGotPts" min="0" step="0.5" placeholder="z.B. 46" oninput="renderKeyTable()">
+                        </div>
+                        <div class="check-col">
+                            <button type="button" class="btn" onclick="resetKeyTable()">Standard-Grenzen</button>
+                        </div>
+                    </div>
+                    <div id="keySummary"></div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Note</th>
+                                    <th>Ab %</th>
+                                    <th>Ab Punkte</th>
+                                    <th>Sperre</th>
+                                </tr>
+                            </thead>
+                            <tbody id="keyTableBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </details>
 
-            <div id="savedExamsList"></div>
-        </div>
-    </details>
+            <details class="card-panel">
+                <summary><span>Notenreihen &amp; Prüfungen vergleichen</span></summary>
+                <div class="panel-body">
+                    <div class="form-grid-2">
+                        <div>
+                            <label for="cmpA">Reihe A (Noten 1–6)</label>
+                            <input type="text" id="cmpA" placeholder="z.B. 122334" oninput="updateComparison()">
+                        </div>
+                        <div>
+                            <label for="cmpB">Reihe B (Noten 1–6)</label>
+                            <input type="text" id="cmpB" placeholder="z.B. 223344" oninput="updateComparison()">
+                        </div>
+                    </div>
+                    <div id="cmpOutput"></div>
+                </div>
+            </details>
+        </section>
+
+        <!-- TAB 4: KOMPLETTE PRÜFUNGEN SPEICHERN & VERLAUF -->
+        <section id="view-archive" class="tab-view">
+            <details class="card-panel" open>
+                <summary><span>Komplette Prüfung speichern</span></summary>
+                <div class="panel-body">
+                    <div class="save-row">
+                        <input type="text" id="archiveName" placeholder="Name der Prüfung / des Stands (z.B. Halbjahr 1)">
+                        <button type="button" class="btn btn-primary" onclick="saveFullSnapshot()">Speichern</button>
+                    </div>
+                    <p class="hint">Speichert Fächer, Noten, Gewichtungen, Verteilungs-Werte und Punkte-Schlüssel gemeinsam im Browser.</p>
+                </div>
+            </details>
+
+            <div id="archiveList"></div>
+        </section>
+
+    </main>
+
+    <!-- BOTTOM APP NAVIGATION -->
+    <nav class="bottom-nav">
+        <button type="button" class="nav-btn active" data-tab="subjects" onclick="switchTab('subjects')">
+            <span class="nav-icon">📚</span>
+            <span>Fächer</span>
+        </button>
+        <button type="button" class="nav-btn" data-tab="distribution" onclick="switchTab('distribution')">
+            <span class="nav-icon">📊</span>
+            <span>Verteilung</span>
+        </button>
+        <button type="button" class="nav-btn" data-tab="tools" onclick="switchTab('tools')">
+            <span class="nav-icon">🎯</span>
+            <span>Schlüssel</span>
+        </button>
+        <button type="button" class="nav-btn" data-tab="archive" onclick="switchTab('archive')">
+            <span class="nav-icon">💾</span>
+            <span>Verlauf</span>
+        </button>
+    </nav>
 </div>
 
+<script src="app.js"></script>
 <script>
-    function escapeHtml(str) {
-        return String(str ?? "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#39;");
-    }
-
-    function roundToHalf(val) {
-        return Math.round(val * 2) / 2;
-    }
-
-    function parseHalfInput(raw) {
-        const s = String(raw ?? "").trim().replace(",", ".");
-        if (s === "") return NaN;
-        const n = parseFloat(s);
-        return isNaN(n) ? NaN : roundToHalf(n);
-    }
-
-    function parseStrictGrades(rawText) {
-        const grades = [];
-        for (const ch of String(rawText || "")) {
-            if (ch >= "1" && ch <= "6") grades.push(parseInt(ch, 10));
-        }
-        return grades;
-    }
-
-    function fmtNum(num, decimals = 2) {
-        if (typeof num !== "number" || isNaN(num)) return "-";
-        return num.toFixed(decimals).replace(".", ",");
-    }
-
-    function calcMoments(grades) {
-        const n = grades.length;
-        if (n === 0) return null;
-        const mean = grades.reduce((a, b) => a + b, 0) / n;
-        let m2 = 0, m3 = 0;
-        for (const g of grades) {
-            const d = g - mean;
-            m2 += d * d;
-            m3 += d * d * d;
-        }
-        const variance = m2 / n;
-        const std = Math.sqrt(variance);
-        const skew = std > 1e-6 ? (m3 / n) / Math.pow(std, 3) : 0;
-        return { n, mean, variance, std, skew, min: Math.min(...grades), max: Math.max(...grades) };
-    }
-
-    function describeSpreadSimple(std) {
-        if (std < 0.70) return "sehr eng beieinander";
-        if (std < 0.95) return "ziemlich einheitlich";
-        if (std <= 1.25) return "normale Streuung";
-        return "stark gestreut";
-    }
-
-    function describeSkewSimple(skew) {
-        if (Math.abs(skew) < 0.2) return "ausgeglichen";
-        return skew < 0 ? "eher leicht (viele gute Noten)" : "eher schwer (viele schwache Noten)";
-    }
-
-    // 1. LIVE-STATISTIK & TATSÄCHLICHE STREUUNG
-    function updateLiveStats() {
-        const grades = parseStrictGrades(document.getElementById("liveGradesInput").value);
-        const m = calcMoments(grades);
-
-        const outAvg = document.getElementById("outAvg");
-        const outCount = document.getElementById("outCount");
-        const outSpread = document.getElementById("outActualSpread");
-        const outSpreadDesc = document.getElementById("outActualSpreadDesc");
-        const outSkew = document.getElementById("outActualSkew");
-        const outSkewDesc = document.getElementById("outActualSkewDesc");
-        const outMinMax = document.getElementById("outMinMax");
-        const outMirror = document.getElementById("outMirror");
-        const info = document.getElementById("liveParsedInfo");
-        const badge = document.getElementById("badgeSec1");
-
-        if (!m) {
-            outAvg.textContent = "-";
-            outCount.textContent = "0 Noten";
-            outSpread.textContent = "-";
-            outSpreadDesc.textContent = "Noch keine Noten";
-            outSkew.textContent = "-";
-            outSkewDesc.textContent = "Noch keine Noten";
-            outMinMax.textContent = "-";
-            outMirror.textContent = "Spiegel: -";
-            info.textContent = "";
-            badge.textContent = "";
-            return;
-        }
-
-        const counts = [0, 0, 0, 0, 0, 0];
-        grades.forEach(g => counts[g - 1]++);
-
-        outAvg.textContent = fmtNum(m.mean, 2);
-        outCount.textContent = `${m.n} ${m.n === 1 ? "Note" : "Noten"}`;
-        outSpread.textContent = `± ${fmtNum(m.std, 2)}`;
-        outSpreadDesc.textContent = describeSpreadSimple(m.std);
-        outSkew.textContent = `${m.skew >= 0 ? "+" : ""}${fmtNum(m.skew, 2)}`;
-        outSkewDesc.textContent = describeSkewSimple(m.skew);
-        outMinMax.textContent = `${m.min} / ${m.max}`;
-        outMirror.textContent = `Spiegel: ${counts.join("–")}`;
-        info.textContent = `Notenreihe: ${grades.join(" ")}`;
-        badge.textContent = `Ø ${fmtNum(m.mean, 2)} · Streuung ±${fmtNum(m.std, 2)}`;
-    }
-
-    // 2. VERTEILUNGS-RECHNER
-    const categoryStates = ["open", "open", "open", "open", "open", "open"];
-    const exactGradeCounts = [null, null, null, null, null, null];
-
-    function renderCategoryControls() {
-        const catGrid = document.getElementById("categoryGrid");
-        const exactGrid = document.getElementById("exactCountsGrid");
-        const summaryEl = document.getElementById("catActiveSummary");
-
-        const mustList = [], noneList = [], exactList = [];
-
-        catGrid.innerHTML = categoryStates.map((st, idx) => {
-            const g = idx + 1;
-            let cls = "cat-pill";
-            let label = "?";
-            if (st === "must") { cls += " state-must"; label = "✓ ≥1×"; mustList.push(g); }
-            else if (st === "none") { cls += " state-none"; label = "✕ 0×"; noneList.push(g); }
-            return `<div class="${cls}" onclick="cycleCategory(${idx})">Note ${g}: <strong>${label}</strong></div>`;
-        }).join("");
-
-        exactGrid.innerHTML = exactGradeCounts.map((val, idx) => {
-            const g = idx + 1;
-            const dispVal = val !== null ? val : "";
-            if (val !== null) exactList.push(`${g}×${val}`);
-            return `
-                <div class="exact-box">
-                    <label for="exactG${g}">Note ${g} (genau)</label>
-                    <input type="number" id="exactG${g}" min="0" max="60" step="1" placeholder="frei" value="${dispVal}" oninput="setExactCount(${idx}, this.value)">
-                </div>
-            `;
-        }).join("");
-    }
-
-    function cycleCategory(idx) {
-        const order = ["open", "must", "none"];
-        categoryStates[idx] = order[(order.indexOf(categoryStates[idx]) + 1) % order.length];
-        if (categoryStates[idx] === "none" && exactGradeCounts[idx] > 0) exactGradeCounts[idx] = 0;
-        renderCategoryControls();
-        updateDistributionLive();
-    }
-
-    function setExactCount(idx, rawVal) {
-        const trimmed = rawVal.trim();
-        if (trimmed === "") {
-            exactGradeCounts[idx] = null;
-        } else {
-            const n = parseInt(trimmed, 10);
-            exactGradeCounts[idx] = (!isNaN(n) && n >= 0) ? Math.floor(n) : null;
-        }
-        if (exactGradeCounts[idx] > 0 && categoryStates[idx] === "none") {
-            categoryStates[idx] = "open";
-            renderCategoryControls();
-        }
-        updateDistributionLive();
-    }
-
-    function applyPreset(type) {
-        if (type === "all") {
-            for (let i = 0; i < 6; i++) {
-                if (exactGradeCounts[i] === 0) exactGradeCounts[i] = null;
-                categoryStates[i] = "must";
-            }
-        } else if (type === "no6") {
-            categoryStates[5] = "none";
-            exactGradeCounts[5] = 0;
-        } else if (type === "no56") {
-            categoryStates[4] = "none";
-            categoryStates[5] = "none";
-            exactGradeCounts[4] = 0;
-            exactGradeCounts[5] = 0;
-        } else if (type === "reset") {
-            for (let i = 0; i < 6; i++) {
-                categoryStates[i] = "open";
-                exactGradeCounts[i] = null;
-            }
-        }
-        renderCategoryControls();
-        updateDistributionLive();
-    }
-
-    const logFact = [0];
-    for (let i = 1; i <= 150; i++) logFact[i] = logFact[i - 1] + Math.log(i);
-
-    function normalCDF(x) {
-        const sign = x < 0 ? -1 : 1;
-        const absX = Math.abs(x) / Math.SQRT2;
-        const t = 1 / (1 + 0.3275911 * absX);
-        const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
-        const a4 = -1.453152027, a5 = 1.061405429;
-        const erf = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-absX * absX);
-        return 0.5 * (1 + sign * erf);
-    }
-
-    function computeCalibratedPriorProbs(targetMean, sigma, allowedMask) {
-        const bounds = [-Infinity, 1.5, 2.5, 3.5, 4.5, 5.5, Infinity];
-        const empiricalWeight = [0.96, 1.04, 1.08, 1.02, 0.88, 0.58];
-
-        function probsForMu(mu) {
-            const raw = [];
-            let s = 0;
-            for (let g = 0; g < 6; g++) {
-                if (!allowedMask[g]) { raw.push(0); continue; }
-                const zLow = bounds[g] === -Infinity ? -Infinity : (bounds[g] - mu) / sigma;
-                const zHigh = bounds[g + 1] === Infinity ? Infinity : (bounds[g + 1] - mu) / sigma;
-                const pLow = zLow === -Infinity ? 0 : normalCDF(zLow);
-                const pHigh = zHigh === Infinity ? 1 : normalCDF(zHigh);
-                const p = Math.max(1e-7, (pHigh - pLow) * empiricalWeight[g]);
-                raw.push(p);
-                s += p;
-            }
-            if (s <= 0) return allowedMask.map(a => (a ? 1 : 0));
-            return raw.map(p => p / s);
-        }
-
-        let low = -1.0, high = 8.0;
-        for (let iter = 0; iter < 32; iter++) {
-            const mid = 0.5 * (low + high);
-            const p = probsForMu(mid);
-            let expMean = 0;
-            for (let g = 0; g < 6; g++) expMean += (g + 1) * p[g];
-            if (expMean < targetMean) low = mid;
-            else high = mid;
-        }
-        return probsForMu(0.5 * (low + high));
-    }
-
-    function detectDecimalsAndValue(rawAvgStr) {
-        const cleaned = String(rawAvgStr || "").trim().replace(",", ".");
-        if (!cleaned || isNaN(Number(cleaned))) return { valid: false };
-        const val = parseFloat(cleaned);
-        let decimals = cleaned.includes(".") ? cleaned.split(".")[1].length : 0;
-        return { valid: true, value: val, decimals: Math.min(decimals, 4) };
-    }
-
-    let distTimer = null;
-    function scheduleDistributionUpdate() {
-        clearTimeout(distTimer);
-        distTimer = setTimeout(updateDistributionLive, 50);
-    }
-
-    function updateDistributionLive() {
-        const N = parseInt(document.getElementById("classSizeInput").value, 10);
-        const avgInfo = detectDecimalsAndValue(document.getElementById("classAvgInput").value);
-        const sigma = parseFloat(document.getElementById("spreadRange").value);
-        const knownGrades = parseStrictGrades(document.getElementById("knownGradesInput").value);
-        const skewFilter = document.getElementById("skewFilterSelect").value;
-        const spreadFilter = document.getElementById("spreadFilterSelect").value;
-
-        document.getElementById("spreadVal").textContent = fmtNum(sigma);
-        document.getElementById("spreadLabelHint").textContent = describeSpreadSimple(sigma);
-        document.getElementById("decimalsHint").textContent = avgInfo.valid ? `${avgInfo.decimals} Nachkommast.` : "Ungültig";
-
-        const out = document.getElementById("distributionOutput");
-        const statusHint = document.getElementById("knownStatusHint");
-        const badge = document.getElementById("badgeSec2");
-
-        if (isNaN(N) || N < 1 || N > 60) {
-            out.innerHTML = `<div class="info-msg error-msg">Bitte eine Anzahl zwischen 1 und 60 Arbeiten eingeben.</div>`;
-            return;
-        }
-        if (!avgInfo.valid || avgInfo.value < 1.0 || avgInfo.value > 6.0) {
-            out.innerHTML = `<div class="info-msg error-msg">Bitte einen gültigen Schnitt zwischen 1,0 und 6,0 eingeben.</div>`;
-            return;
-        }
-        if (knownGrades.length > N) {
-            out.innerHTML = `<div class="info-msg error-msg">Mehr bekannte Noten (${knownGrades.length}) als Arbeiten (${N}).</div>`;
-            return;
-        }
-
-        const knownCounts = [0, 0, 0, 0, 0, 0];
-        for (const g of knownGrades) knownCounts[g - 1]++;
-
-        for (let g = 0; g < 6; g++) {
-            if (exactGradeCounts[g] !== null && knownCounts[g] > exactGradeCounts[g]) {
-                out.innerHTML = `<div class="info-msg error-msg">Widerspruch bei Note ${g + 1}: ${knownCounts[g]} bekannte Noten, aber exakt ${exactGradeCounts[g]} festgelegt.</div>`;
-                return;
-            }
-            if (categoryStates[g] === "none" && knownCounts[g] > 0) {
-                out.innerHTML = `<div class="info-msg error-msg">Widerspruch: Note ${g + 1} ist ausgeschlossen (✕ 0×), steht aber bei den bekannten Noten.</div>`;
-                return;
-            }
-        }
-
-        const minCounts = [0, 0, 0, 0, 0, 0];
-        const maxCounts = [N, N, N, N, N, N];
-        const allowedMask = [true, true, true, true, true, true];
-        let fixedStudents = 0, fixedSum = 0;
-
-        for (let g = 0; g < 6; g++) {
-            if (exactGradeCounts[g] !== null) {
-                minCounts[g] = exactGradeCounts[g];
-                maxCounts[g] = exactGradeCounts[g];
-                if (exactGradeCounts[g] === 0) allowedMask[g] = false;
-            } else if (categoryStates[g] === "none") {
-                minCounts[g] = 0;
-                maxCounts[g] = 0;
-                allowedMask[g] = false;
-            } else {
-                const reqMust = categoryStates[g] === "must" ? 1 : 0;
-                minCounts[g] = Math.max(knownCounts[g], reqMust);
-                maxCounts[g] = N;
-            }
-            if (minCounts[g] > maxCounts[g]) {
-                out.innerHTML = `<div class="info-msg error-msg">Widersprüchliche Vorgaben bei Note ${g + 1}.</div>`;
-                return;
-            }
-            fixedStudents += minCounts[g];
-            fixedSum += minCounts[g] * (g + 1);
-        }
-
-        if (fixedStudents > N) {
-            out.innerHTML = `<div class="info-msg error-msg">Mindestens ${fixedStudents} Noten festgelegt, aber nur ${N} Arbeiten vorhanden.</div>`;
-            return;
-        }
-
-        const remStudents = N - fixedStudents;
-        statusHint.textContent = `${knownGrades.length} bekannt, ${Math.max(0, N - knownGrades.length)} offen`;
-
-        const targetAvg = avgInfo.value;
-        const decimals = avgInfo.decimals;
-        badge.textContent = `${N} Arbeiten · Ø ${fmtNum(targetAvg, Math.max(1, decimals))}`;
-
-        let minSum, maxSum;
-        if (decimals === 0) {
-            const exactSum = Math.round(targetAvg * N);
-            if (Math.abs(exactSum / N - targetAvg) > 1e-6) {
-                out.innerHTML = `<div class="info-msg error-msg">Ein exakter Schnitt von ${targetAvg} ist bei ${N} Arbeiten nicht erreichbar.</div>`;
-                return;
-            }
-            minSum = exactSum;
-            maxSum = exactSum;
-        } else {
-            const halfTol = 0.5 * Math.pow(10, -decimals);
-            minSum = Math.ceil((targetAvg - halfTol) * N - 1e-9);
-            maxSum = Math.floor((targetAvg + halfTol - 1e-9) * N);
-        }
-
-        const remMinSum = minSum - fixedSum;
-        const remMaxSum = maxSum - fixedSum;
-
-        const flexGrades = [];
-        for (let g = 0; g < 6; g++) if (maxCounts[g] > minCounts[g]) flexGrades.push(g + 1);
-
-        if (remStudents === 0) {
-            if (fixedSum < minSum || fixedSum > maxSum) {
-                out.innerHTML = `<div class="info-msg error-msg">Schnitt der festgelegten Noten (${fmtNum(fixedSum / N)}) passt nicht zum Ziel.</div>`;
-                return;
-            }
-        } else {
-            if (flexGrades.length === 0) {
-                out.innerHTML = `<div class="info-msg error-msg">Noch ${remStudents} Noten offen, aber keine flexible Note erlaubt.</div>`;
-                return;
-            }
-            if (remMaxSum < remStudents * flexGrades[0] || remMinSum > remStudents * flexGrades[flexGrades.length - 1]) {
-                out.innerHTML = `<div class="info-msg error-msg">Mit diesen Vorgaben ist Ø ${fmtNum(targetAvg, Math.max(1, decimals))} bei ${N} Arbeiten nicht erreichbar.</div>`;
-                return;
-            }
-        }
-
-        const probs = computeCalibratedPriorProbs(targetAvg, sigma, allowedMask);
-        const logProbs = probs.map(p => (p > 0 ? Math.log(p) : -Infinity));
-        const targetVariance = sigma * sigma;
-
-        const candidates = [];
-        const remCounts = [0, 0, 0, 0, 0, 0];
-        const fLen = flexGrades.length;
-        const MAX_CANDIDATES = 150000;
-
-        function evaluateTotal(totalArr) {
-            let totalSum = 0;
-            for (let g = 0; g < 6; g++) totalSum += totalArr[g] * (g + 1);
-            const exactAvg = totalSum / N;
-
-            let logMultinomial = logFact[N];
-            let empVarSum = 0, empSkewSum = 0;
-            for (let g = 0; g < 6; g++) {
-                const c = totalArr[g];
-                if (c > 0) {
-                    const d = (g + 1) - exactAvg;
-                    const d2 = d * d;
-                    empVarSum += c * d2;
-                    empSkewSum += c * d2 * d;
-                    logMultinomial -= logFact[c];
-                    if (isFinite(logProbs[g])) logMultinomial += c * logProbs[g];
-                }
-            }
-
-            const empVar = empVarSum / N;
-            const empStd = Math.sqrt(empVar);
-            const empSkew = empStd > 1e-6 ? (empSkewSum / N) / Math.pow(empStd, 3) : 0;
-
-            const varPenalty = Math.abs(empVar - targetVariance) * (N * 0.45);
-            const avgPenalty = Math.abs(exactAvg - targetAvg) * N * 0.4;
-
-            candidates.push({
-                counts: totalArr,
-                exactAvg,
-                std: empStd,
-                skew: empSkew,
-                score: logMultinomial - varPenalty - avgPenalty
-            });
-        }
-
-        if (remStudents === 0) {
-            evaluateTotal([...minCounts]);
-        } else {
-            function dfs(pos, leftStudents, sumMin, sumMax) {
-                if (candidates.length >= MAX_CANDIDATES) return;
-                const grade = flexGrades[pos];
-                const gIdx = grade - 1;
-                const capForThis = maxCounts[gIdx] - minCounts[gIdx];
-
-                if (pos === fLen - 1) {
-                    if (leftStudents <= capForThis) {
-                        const sLast = leftStudents * grade;
-                        if (sLast >= sumMin && sLast <= sumMax) {
-                            remCounts[gIdx] = leftStudents;
-                            evaluateTotal([
-                                minCounts[0] + remCounts[0],
-                                minCounts[1] + remCounts[1],
-                                minCounts[2] + remCounts[2],
-                                minCounts[3] + remCounts[3],
-                                minCounts[4] + remCounts[4],
-                                minCounts[5] + remCounts[5]
-                            ]);
-                        }
-                    }
-                    return;
-                }
-
-                const nextMin = flexGrades[pos + 1];
-                const highestRem = flexGrades[fLen - 1];
-                const minC = Math.max(0, Math.ceil((leftStudents * nextMin - sumMax) / (nextMin - grade)));
-                const maxC = Math.min(leftStudents, capForThis, Math.floor((leftStudents * highestRem - sumMin) / (highestRem - grade)));
-
-                for (let c = minC; c <= maxC; c++) {
-                    remCounts[gIdx] = c;
-                    dfs(pos + 1, leftStudents - c, sumMin - c * grade, sumMax - c * grade);
-                }
-            }
-            dfs(0, remStudents, remMinSum, remMaxSum);
-        }
-
-        if (candidates.length === 0) {
-            out.innerHTML = `<div class="info-msg error-msg">Keine gültige Notenverteilung gefunden.</div>`;
-            return;
-        }
-
-        candidates.sort((a, b) => b.score - a.score);
-
-        const maxScore = candidates[0].score;
-        let sumExp = 0;
-        const weights = new Float64Array(candidates.length);
-        for (let i = 0; i < candidates.length; i++) {
-            const w = Math.exp(candidates[i].score - maxScore);
-            weights[i] = w;
-            sumExp += w;
-        }
-
-        const probAtLeastOne = [0, 0, 0, 0, 0, 0];
-        const expectedCount = [0, 0, 0, 0, 0, 0];
-        for (let i = 0; i < candidates.length; i++) {
-            const p = weights[i] / sumExp;
-            for (let g = 0; g < 6; g++) {
-                if (candidates[i].counts[g] > 0) probAtLeastOne[g] += p;
-                expectedCount[g] += p * candidates[i].counts[g];
-            }
-        }
-
-        const filteredWithIdx = [];
-        for (let i = 0; i < candidates.length; i++) {
-            const item = candidates[i];
-            if (skewFilter === "light" && !(item.skew < -0.15)) continue;
-            if (skewFilter === "heavy" && !(item.skew > 0.15)) continue;
-            if (skewFilter === "balanced" && !(Math.abs(item.skew) <= 0.55)) continue;
-
-            if (spreadFilter === "tight" && !(item.std <= 0.95)) continue;
-            if (spreadFilter === "medium" && !(item.std >= 0.90 && item.std <= 1.35)) continue;
-            if (spreadFilter === "wide" && !(item.std >= 1.25)) continue;
-            filteredWithIdx.push({ item, origIdx: i });
-        }
-
-        if (filteredWithIdx.length === 0) {
-            out.innerHTML = `<div class="info-msg error-msg">Keine Verteilung passt gleichzeitig zu Schnitt und Filter. Lockere den Filter etwas.</div>`;
-            return;
-        }
-
-        const top10 = filteredWithIdx.slice(0, 10);
-
-        let html = `
-            <details class="box-panel" open>
-                <summary>
-                    <span>Wie wahrscheinlich ist jede Note? (über ${candidates.length.toLocaleString("de-DE")} Varianten)</span>
-                    <span style="font-size:0.76rem; color:var(--muted); margin-left:auto; margin-right:8px;">Treffer: ${filteredWithIdx.length.toLocaleString("de-DE")}</span>
-                </summary>
-                <div class="box-panel-body">
-                    <div class="radar-grid">
-                        ${[0,1,2,3,4,5].map(g => `
-                            <div class="radar-box">
-                                <div class="r-title">Note ${g + 1} (≥1×)</div>
-                                <div class="r-prob">${fmtNum(probAtLeastOne[g] * 100, 0)} %</div>
-                                <div class="r-exp">Ø ${fmtNum(expectedCount[g], 1)}×</div>
-                            </div>
-                        `).join("")}
-                    </div>
-                </div>
-            </details>
-
-            <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th>
-                        <th>Alle ${N} Noten (<span style="color:#1e40af;">blau = bekannt</span>)</th>
-                        <th>Ø</th>
-                        <th>Streuung</th>
-                        <th>Tendenz</th>
-                        <th style="text-align:right;">Wahrsch.</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-
-        top10.forEach(({ item, origIdx }, i) => {
-            const prob = (weights[origIdx] / sumExp) * 100;
-            const countCells = item.counts.map(c => `<td><strong>${c}</strong></td>`).join("");
-
-            const badges = [];
-            for (let g = 0; g < 6; g++) {
-                const gradeNum = g + 1;
-                const kCount = knownCounts[g];
-                const estCount = item.counts[g] - kCount;
-                for (let k = 0; k < kCount; k++) badges.push(`<span class="g-known">${gradeNum}</span>`);
-                for (let e = 0; e < estCount; e++) badges.push(`<span class="g-est">${gradeNum}</span>`);
-            }
-
-            html += `
-                <tr>
-                    <td style="color:var(--muted);">${i + 1}.</td>
-                    ${countCells}
-                    <td class="grades-seq">${badges.join("")}</td>
-                    <td>${fmtNum(item.exactAvg)}</td>
-                    <td title="${describeSpreadSimple(item.std)}">±${fmtNum(item.std, 2)}</td>
-                    <td title="${describeSkewSimple(item.skew)}">${item.skew < -0.15 ? "Leicht" : (item.skew > 0.15 ? "Schwer" : "Ausgeglichen")}</td>
-                    <td class="prob-cell">
-                        ${fmtNum(prob, 1)} %
-                        <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(100, prob * 2.5)}%"></div></div>
-                    </td>
-                </tr>
-            `;
+    if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+            navigator.serviceWorker.register("./sw.js").catch(() => {});
         });
-
-        html += `</tbody></table></div>`;
-        out.innerHTML = html;
     }
-
-    // 3. PUNKTEVERTEILUNG VERÄNDERBAR MIT AUTOMATISCHER ANPASSUNG
-    const DEFAULT_PCTS = [92, 81, 67, 50, 30, 0];
-    let keyRows = [
-        { grade: "Note 1", pct: 92, pts: 55.0, locked: false },
-        { grade: "Note 2", pct: 81, pts: 48.5, locked: false },
-        { grade: "Note 3", pct: 67, pts: 40.0, locked: false },
-        { grade: "Note 4", pct: 50, pts: 30.0, locked: false },
-        { grade: "Note 5", pct: 30, pts: 18.0, locked: false },
-        { grade: "Note 6", pct: 0,  pts: 0.0,  locked: true }
-    ];
-
-    function syncPtsFromPcts(maxPts) {
-        for (let i = 0; i < keyRows.length; i++) {
-            keyRows[i].pts = Math.min(maxPts, Math.max(0, roundToHalf((keyRows[i].pct / 100) * maxPts)));
-        }
-        // Monotonie sicherstellen (höhere Note braucht >= Punkte als niedrigere Note)
-        for (let i = 1; i < keyRows.length; i++) {
-            if (keyRows[i].pts > keyRows[i - 1].pts) {
-                keyRows[i].pts = keyRows[i - 1].pts;
-            }
-        }
-    }
-
-    function recalcKeyFromMax() {
-        const maxPts = parseHalfInput(document.getElementById("maxPtsInput").value);
-        if (isNaN(maxPts) || maxPts < 0.5) {
-            renderKeyTable();
-            return;
-        }
-        syncPtsFromPcts(maxPts);
-        renderKeyTable();
-    }
-
-    function resetKeyDefaults() {
-        const maxPts = parseHalfInput(document.getElementById("maxPtsInput").value);
-        const validMax = (!isNaN(maxPts) && maxPts >= 0.5) ? maxPts : 60;
-        for (let i = 0; i < 6; i++) {
-            keyRows[i].pct = DEFAULT_PCTS[i];
-            keyRows[i].locked = (i === 5);
-        }
-        syncPtsFromPcts(validMax);
-        renderKeyTable();
-    }
-
-    function onEditKeyPts(idx, rawVal) {
-        const maxPts = parseHalfInput(document.getElementById("maxPtsInput").value);
-        if (isNaN(maxPts) || maxPts < 0.5) return;
-        const parsed = parseHalfInput(rawVal);
-        if (isNaN(parsed)) return;
-
-        const newPts = Math.min(maxPts, Math.max(0, parsed));
-        const oldPts = keyRows[idx].pts;
-        keyRows[idx].pts = newPts;
-        keyRows[idx].pct = Math.min(100, Math.max(0, (newPts / maxPts) * 100));
-
-        // Nicht-fixierte Nachbarn automatisch proportional anpassen
-        const delta = newPts - oldPts;
-        if (Math.abs(delta) > 0) {
-            const unlockedIndices = [];
-            for (let i = 0; i < keyRows.length; i++) {
-                if (i !== idx && !keyRows[i].locked && i !== 5) unlockedIndices.push(i);
-            }
-            if (unlockedIndices.length > 0) {
-                const share = roundToHalf(delta / unlockedIndices.length);
-                for (const uIdx of unlockedIndices) {
-                    const adj = Math.min(maxPts, Math.max(0, roundToHalf(keyRows[uIdx].pts + share)));
-                    keyRows[uIdx].pts = adj;
-                    keyRows[uIdx].pct = (adj / maxPts) * 100;
-                }
-            }
-        }
-
-        // Saubere Reihenfolge von Note 1 (oben) nach Note 6 (unten) halten
-        for (let i = 1; i < keyRows.length; i++) {
-            if (keyRows[i].pts > keyRows[i - 1].pts) {
-                keyRows[i].pts = keyRows[i - 1].pts;
-                keyRows[i].pct = (keyRows[i].pts / maxPts) * 100;
-            }
-        }
-        keyRows[5].pts = 0;
-        keyRows[5].pct = 0;
-
-        renderKeyTable();
-    }
-
-    function onEditKeyPct(idx, rawVal) {
-        const maxPts = parseHalfInput(document.getElementById("maxPtsInput").value);
-        if (isNaN(maxPts) || maxPts < 0.5) return;
-        const p = parseFloat(String(rawVal).replace(",", "."));
-        if (isNaN(p)) return;
-        const clampedPct = Math.min(100, Math.max(0, p));
-        const pts = roundToHalf((clampedPct / 100) * maxPts);
-        onEditKeyPts(idx, pts);
-    }
-
-    function toggleKeyLock(idx) {
-        keyRows[idx].locked = !keyRows[idx].locked;
-        renderKeyTable();
-    }
-
-    function renderKeyTable() {
-        const maxPts = parseHalfInput(document.getElementById("maxPtsInput").value);
-        const gotPts = parseHalfInput(document.getElementById("gotPtsInput").value);
-        const tbody = document.getElementById("keyTableBody");
-        const sumBox = document.getElementById("keySummaryBox");
-        const badge = document.getElementById("badgeSec3");
-
-        if (isNaN(maxPts) || maxPts < 0.5 || isNaN(gotPts) || gotPts < 0 || gotPts > maxPts) {
-            sumBox.innerHTML = `<div class="info-msg error-msg">Bitte gültige Punkte (0,5er- oder 1er-Schritte, eigene ≤ max.) eingeben.</div>`;
-            badge.textContent = "";
-            return;
-        }
-
-        const pct = (gotPts / maxPts) * 100;
-        let hitIdx = keyRows.findIndex(r => gotPts >= r.pts - 1e-9);
-        if (hitIdx === -1) hitIdx = 5;
-
-        const currentGradeText = keyRows[hitIdx].grade;
-        let nextHint = "";
-        if (hitIdx > 0) {
-            const targetRow = keyRows[hitIdx - 1];
-            const diff = Math.max(0, roundToHalf(targetRow.pts - gotPts));
-            nextHint = ` · Noch ${fmtNum(diff, 1)} Pkt. bis ${targetRow.grade}`;
-        }
-
-        sumBox.innerHTML = `<div class="info-msg" style="color:var(--text); font-weight:600;">${fmtNum(gotPts, 1)} / ${fmtNum(maxPts, 1)} Pkt. (${fmtNum(pct, 1)} %) → ${currentGradeText}${nextHint}</div>`;
-        badge.textContent = `${fmtNum(gotPts, 1)}/${fmtNum(maxPts, 1)} Pkt. · ${currentGradeText}`;
-
-        tbody.innerHTML = keyRows.map((r, idx) => {
-            const activeMark = idx === hitIdx ? ` <span style="color:var(--primary); font-size:0.75rem;">(deine Note)</span>` : "";
-            return `
-                <tr style="${idx === hitIdx ? 'background:#eff6ff;' : ''}">
-                    <td><strong>${r.grade}</strong>${activeMark}</td>
-                    <td><input type="number" class="key-input-inline" step="0.5" min="0" max="100" value="${r.pct.toFixed(1)}" onchange="onEditKeyPct(${idx}, this.value)"> %</td>
-                    <td><input type="number" class="key-input-inline" step="0.5" min="0" max="${maxPts}" value="${r.pts.toFixed(1)}" onchange="onEditKeyPts(${idx}, this.value)"> Pkt.</td>
-                    <td><button type="button" class="btn" onclick="toggleKeyLock(${idx})">${r.locked ? "🔒 Fix" : "🔓 Auto"}</button></td>
-                </tr>
-            `;
-        }).join("");
-    }
-
-    // 4. VERGLEICH & KOMPLETTE PRÜFUNG SPEICHERN
-    function updateComparison() {
-        const mA = calcMoments(parseStrictGrades(document.getElementById("cmpAInput").value));
-        const mB = calcMoments(parseStrictGrades(document.getElementById("cmpBInput").value));
-        const out = document.getElementById("compareOutput");
-
-        if (!mA && !mB) {
-            out.innerHTML = `<div class="hint">Zwei Notenreihen eingeben, um Schnitt, Streuung und Schiefe direkt zu vergleichen.</div>`;
-            return;
-        }
-
-        const f = (m, fn) => m ? fn(m) : "-";
-        const diffAvg = (mA && mB) ? `${mB.mean - mA.mean >= 0 ? "+" : ""}${fmtNum(mB.mean - mA.mean, 2)}` : "-";
-
-        out.innerHTML = `
-            <div class="table-wrap">
-                <table>
-                    <thead><tr><th>Wert</th><th>Reihe A</th><th>Reihe B</th><th>Unterschied (B − A)</th></tr></thead>
-                    <tbody>
-                        <tr><td>Anzahl</td><td>${f(mA, x => x.n)}</td><td>${f(mB, x => x.n)}</td><td>${(mA && mB) ? (mB.n - mA.n) : "-"}</td></tr>
-                        <tr><td>Schnitt (Ø)</td><td><strong>${f(mA, x => fmtNum(x.mean))}</strong></td><td><strong>${f(mB, x => fmtNum(x.mean))}</strong></td><td><strong>${diffAvg}</strong></td></tr>
-                        <tr><td>Streuung</td><td>${f(mA, x => "±" + fmtNum(x.std))}</td><td>${f(mB, x => "±" + fmtNum(x.std))}</td><td>${(mA && mB) ? fmtNum(mB.std - mA.std) : "-"}</td></tr>
-                        <tr><td>Schiefe</td><td>${f(mA, x => fmtNum(x.skew))}</td><td>${f(mB, x => fmtNum(x.skew))}</td><td>${(mA && mB) ? fmtNum(mB.skew - mA.skew) : "-"}</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        `;
-    }
-
-    const EXAMS_STORAGE_KEY = "complete_exams_v1";
-
-    function loadSavedExams() {
-        try { return JSON.parse(localStorage.getItem(EXAMS_STORAGE_KEY)) || []; }
-        catch { return []; }
-    }
-
-    function saveFullExam() {
-        const nameInput = document.getElementById("fullExamName");
-        const examName = nameInput.value.trim() || `Prüfung vom ${new Date().toLocaleDateString("de-DE")}`;
-
-        const snapshot = {
-            id: Date.now(),
-            name: examName,
-            liveGradesRaw: document.getElementById("liveGradesInput").value,
-            classSize: document.getElementById("classSizeInput").value,
-            classAvg: document.getElementById("classAvgInput").value,
-            spread: document.getElementById("spreadRange").value,
-            knownGradesRaw: document.getElementById("knownGradesInput").value,
-            skewFilter: document.getElementById("skewFilterSelect").value,
-            spreadFilter: document.getElementById("spreadFilterSelect").value,
-            maxPts: document.getElementById("maxPtsInput").value,
-            gotPts: document.getElementById("gotPtsInput").value,
-            keyRows: JSON.parse(JSON.stringify(keyRows))
-        };
-
-        const list = loadSavedExams();
-        list.unshift(snapshot);
-        localStorage.setItem(EXAMS_STORAGE_KEY, JSON.stringify(list.slice(0, 20)));
-        nameInput.value = "";
-        renderSavedExams();
-    }
-
-    function applyFullExam(id) {
-        const ex = loadSavedExams().find(x => x.id === id);
-        if (!ex) return;
-
-        document.getElementById("liveGradesInput").value = ex.liveGradesRaw || "";
-        document.getElementById("classSizeInput").value = ex.classSize || "25";
-        document.getElementById("classAvgInput").value = ex.classAvg || "2,68";
-        document.getElementById("spreadRange").value = ex.spread || "1.00";
-        document.getElementById("knownGradesInput").value = ex.knownGradesRaw || "";
-        document.getElementById("skewFilterSelect").value = ex.skewFilter || "any";
-        document.getElementById("spreadFilterSelect").value = ex.spreadFilter || "any";
-        document.getElementById("maxPtsInput").value = ex.maxPts || "60";
-        document.getElementById("gotPtsInput").value = ex.gotPts || "46";
-
-        if (Array.isArray(ex.keyRows) && ex.keyRows.length === 6) {
-            keyRows = JSON.parse(JSON.stringify(ex.keyRows));
-        }
-
-        updateLiveStats();
-        updateDistributionLive();
-        renderKeyTable();
-    }
-
-    function putExamInCompare(id, slot) {
-        const ex = loadSavedExams().find(x => x.id === id);
-        if (!ex) return;
-        const gradesStr = parseStrictGrades(ex.liveGradesRaw).join("");
-        if (slot === "A") document.getElementById("cmpAInput").value = gradesStr;
-        else document.getElementById("cmpBInput").value = gradesStr;
-        updateComparison();
-    }
-
-    function deleteSavedExam(id) {
-        const next = loadSavedExams().filter(x => x.id !== id);
-        localStorage.setItem(EXAMS_STORAGE_KEY, JSON.stringify(next));
-        renderSavedExams();
-    }
-
-    function renderSavedExams() {
-        const list = loadSavedExams();
-        const container = document.getElementById("savedExamsList");
-        const badge = document.getElementById("badgeSec4");
-        badge.textContent = `${list.length} gespeichert`;
-
-        if (list.length === 0) {
-            container.innerHTML = `<div class="hint">Noch keine komplette Prüfung gespeichert. Gib oben einen Namen ein und klicke auf „Komplette Prüfung speichern“.</div>`;
-            return;
-        }
-
-        container.innerHTML = list.map(ex => {
-            const m = calcMoments(parseStrictGrades(ex.liveGradesRaw));
-            const liveSummary = m
-                ? `Noten Ø ${fmtNum(m.mean)} (±${fmtNum(m.std)})`
-                : `Verteilung N=${escapeHtml(ex.classSize)}, Ø ${escapeHtml(ex.classAvg)}`;
-            const ptsSummary = `${escapeHtml(ex.gotPts)}/${escapeHtml(ex.maxPts)} Pkt.`;
-
-            return `
-                <div class="exam-card">
-                    <div>
-                        <strong>${escapeHtml(ex.name)}</strong>
-                        <div class="exam-meta">${liveSummary} · ${ptsSummary}</div>
-                    </div>
-                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                        <button type="button" class="btn btn-primary" onclick="applyFullExam(${ex.id})">Alle Werte laden</button>
-                        <button type="button" class="btn" onclick="putExamInCompare(${ex.id}, 'A')">Vergleich A</button>
-                        <button type="button" class="btn" onclick="putExamInCompare(${ex.id}, 'B')">Vergleich B</button>
-                        <button type="button" class="btn btn-danger" onclick="deleteSavedExam(${ex.id})">Löschen</button>
-                    </div>
-                </div>
-            `;
-        }).join("");
-    }
-
-    // Start
-    renderCategoryControls();
-    updateLiveStats();
-    updateDistributionLive();
-    renderKeyTable();
-    updateComparison();
-    renderSavedExams();
 </script>
-
 </body>
 </html>
