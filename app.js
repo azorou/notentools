@@ -1,17 +1,67 @@
 const STORAGE_KEYS = {
-    subjects: "notenapp_subjects_v1",
-    archive: "notenapp_archive_v1",
-    theme: "notenapp_theme_v1"
+    subjects: "notenapp_subjects_v2",
+    archive: "notenapp_archive_v2",
+    theme: "notenapp_theme_v2"
 };
+
+const SUBJECT_PRESETS = [
+    {
+        name: "Mathematik",
+        type: "haupt",
+        ratio: "2:1",
+        notAdvancement: false,
+        ratioLabel: "Hauptfach · SA:Klein 2:1",
+        icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h2m4 0h2M8 16h2m4 0h2"/></svg>`
+    },
+    {
+        name: "Deutsch",
+        type: "haupt",
+        ratio: "1:1",
+        notAdvancement: false,
+        ratioLabel: "Hauptfach · SA:Klein 1:1",
+        icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`
+    },
+    {
+        name: "Englisch",
+        type: "haupt",
+        ratio: "1:1",
+        notAdvancement: false,
+        ratioLabel: "Hauptfach · SA:Klein 1:1",
+        icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>`
+    },
+    {
+        name: "Biologie",
+        type: "neben",
+        ratio: "1:1",
+        notAdvancement: false,
+        ratioLabel: "Nebenfach · Groß ×2 / Klein ×1",
+        icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22V8"/><path d="M5 12c0-4 3-7 7-7 4 0 7 3 7 7-3 0-5-1-7-3-2 2-4 3-7 3z"/></svg>`
+    },
+    {
+        name: "Geschichte",
+        type: "neben",
+        ratio: "1:1",
+        notAdvancement: false,
+        ratioLabel: "Nebenfach · Groß ×2 / Klein ×1",
+        icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`
+    },
+    {
+        name: "Sport",
+        type: "neben",
+        ratio: "1:1",
+        notAdvancement: true,
+        ratioLabel: "Nebenfach · Kein Vorrückungsfach",
+        icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></svg>`
+    }
+];
 
 let subjects = [];
 let deferredInstallPrompt = null;
 
-// --- THEME ---
 function initTheme() {
     const saved = localStorage.getItem(STORAGE_KEYS.theme) || "auto";
     document.documentElement.setAttribute("data-theme", saved);
-    updateThemeButton(saved);
+    updateThemeBtn(saved);
 }
 
 function cycleTheme() {
@@ -20,18 +70,15 @@ function cycleTheme() {
     const next = order[(order.indexOf(cur) + 1) % order.length];
     localStorage.setItem(STORAGE_KEYS.theme, next);
     document.documentElement.setAttribute("data-theme", next);
-    updateThemeButton(next);
+    updateThemeBtn(next);
 }
 
-function updateThemeButton(mode) {
+function updateThemeBtn(mode) {
     const btn = document.getElementById("themeBtn");
     if (!btn) return;
-    if (mode === "dark") btn.textContent = "🌙 Dunkel";
-    else if (mode === "light") btn.textContent = "☀️ Hell";
-    else btn.textContent = "🌓 Auto";
+    btn.textContent = mode === "dark" ? "Dunkel" : (mode === "light" ? "Hell" : "Auto");
 }
 
-// --- PWA INSTALL ---
 window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferredInstallPrompt = e;
@@ -52,19 +99,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-// --- NAVIGATION ---
 function switchTab(tabName) {
     document.querySelectorAll(".tab-view").forEach(sec => sec.classList.remove("active"));
     document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
-
-    const targetView = document.getElementById("view-" + tabName);
-    if (targetView) targetView.classList.add("active");
-
-    const targetBtn = document.querySelector(`.nav-btn[data-tab="${tabName}"]`);
-    if (targetBtn) targetBtn.classList.add("active");
+    document.getElementById("view-" + tabName)?.classList.add("active");
+    document.querySelector(`.nav-btn[data-tab="${tabName}"]`)?.classList.add("active");
 }
 
-// --- HILFSFUNKTIONEN ---
 function esc(s) {
     return String(s ?? "")
         .replace(/&/g, "&amp;")
@@ -89,14 +130,10 @@ function parseHalf(raw) {
     return isNaN(n) ? NaN : roundHalf(n);
 }
 
-// Parst Noten wie "1", "2+", "3-", "4" (Zahlenwert = Basisnote 1..6)
 function parseGradeToken(rawToken) {
-    const s = String(rawToken ?? "").trim();
-    const m = s.match(/^([1-6])([+-])?$/);
+    const m = String(rawToken ?? "").trim().match(/^([1-6])([+-])?$/);
     if (!m) return null;
-    const base = parseInt(m[1], 10);
-    const sign = m[2] || "";
-    return { base, sign, label: `${base}${sign}` };
+    return { base: parseInt(m[1], 10), sign: m[2] || "", label: `${m[1]}${m[2] || ""}` };
 }
 
 function parseStrictDigits1to6(raw) {
@@ -112,18 +149,45 @@ function saveSubjects() {
 }
 
 function loadSubjects() {
-    try {
-        subjects = JSON.parse(localStorage.getItem(STORAGE_KEYS.subjects)) || [];
-    } catch {
-        subjects = [];
-    }
+    try { subjects = JSON.parse(localStorage.getItem(STORAGE_KEYS.subjects)) || []; }
+    catch { subjects = []; }
 }
 
-// --- FÄCHER & NOTEN-LOGIK ---
+function renderPresets() {
+    const grid = document.getElementById("presetSubjectsGrid");
+    if (!grid) return;
+    grid.innerHTML = SUBJECT_PRESETS.map((p, idx) => `
+        <button type="button" class="preset-card" onclick="addFromPreset(${idx})">
+            <div class="preset-left">
+                <span class="preset-icon">${p.icon}</span>
+                <div style="min-width:0;">
+                    <div class="preset-title">${esc(p.name)}</div>
+                    <div class="preset-ratio">${esc(p.ratioLabel)}</div>
+                </div>
+            </div>
+            <span style="font-size:0.85rem; font-weight:700; color:var(--primary);">+</span>
+        </button>
+    `).join("");
+}
+
+function addFromPreset(idx) {
+    const p = SUBJECT_PRESETS[idx];
+    if (!p) return;
+    subjects.push({
+        id: Date.now() + Math.random(),
+        name: p.name,
+        type: p.type,
+        ratio: p.ratio,
+        notAdvancement: p.notAdvancement,
+        grades: []
+    });
+    saveSubjects();
+    renderSubjects();
+}
+
 function toggleNewSubDefaults() {
     const type = document.getElementById("newSubType").value;
-    const ratioSel = document.getElementById("newSubRatio");
-    ratioSel.disabled = (type !== "haupt");
+    document.getElementById("newSubRatio").disabled = (type !== "haupt");
 }
 
 function addSubject() {
@@ -138,10 +202,10 @@ function addSubject() {
     subjects.push({
         id: Date.now() + Math.random(),
         name,
-        type, // "haupt" | "neben"
+        type,
         ratio: type === "haupt" ? ratio : "1:1",
         notAdvancement: notAdv,
-        grades: [] // { id, base, sign, label, kind: "sa" | "klein" | "gross", weight }
+        grades: []
     });
 
     nameInput.value = "";
@@ -172,18 +236,6 @@ function updateSubjectRatio(subId, newRatio) {
     renderSubjects();
 }
 
-function defaultWeightForKind(sub, kind) {
-    if (sub.type === "haupt") {
-        if (kind === "sa") {
-            return sub.ratio === "2:1" ? 2 : 1;
-        }
-        return 1;
-    } else {
-        // Nebenfach: großer LN standardmäßig doppelt (2), kleiner einfach (1)
-        return kind === "gross" ? 2 : 1;
-    }
-}
-
 function addGradeToSubject(subId) {
     const sub = subjects.find(s => s.id === subId);
     if (!sub) return;
@@ -197,7 +249,7 @@ function addGradeToSubject(subId) {
 
     const kind = kindSel.value;
     let w = parseFloat(String(wInput.value).replace(",", "."));
-    if (isNaN(w) || w <= 0) w = defaultWeightForKind(sub, kind);
+    if (isNaN(w) || w <= 0) w = kind === "klein" ? 1 : 2;
 
     sub.grades.push({
         id: Date.now() + Math.random(),
@@ -234,42 +286,29 @@ function removeGradeFromSubject(subId, gradeId) {
     renderSubjects();
 }
 
-// Berechnet den Fachschnitt anhand der Gewichtungen
 function calcSubjectAverage(sub) {
     if (!sub.grades || sub.grades.length === 0) return null;
 
-    if (sub.type === "haupt") {
-        // Im Hauptfach: wenn SA und kleine LN vorhanden sind, SA-Schnitt und Klein-Schnitt im Verhältnis sub.ratio gewichten;
-        // falls nur eine Gruppe existiert, gewichteten Schnitt dieser Gruppe nehmen.
-        const saList = sub.grades.filter(g => g.kind === "sa");
-        const smallList = sub.grades.filter(g => g.kind !== "sa");
-
-        const weightedMean = (arr) => {
-            let num = 0, den = 0;
-            for (const x of arr) {
-                num += x.base * x.weight;
-                den += x.weight;
-            }
-            return den > 0 ? { avg: num / den, den } : null;
-        };
-
-        const saRes = weightedMean(saList);
-        const smRes = weightedMean(smallList);
-
-        if (saRes && smRes) {
-            const [saFactor, smFactor] = sub.ratio === "2:1" ? [2, 1] : [1, 1];
-            return (saRes.avg * saFactor + smRes.avg * smFactor) / (saFactor + smFactor);
+    const weightedMean = (arr) => {
+        let num = 0, den = 0;
+        for (const x of arr) {
+            num += x.base * x.weight;
+            den += x.weight;
         }
-        return saRes ? saRes.avg : smRes.avg;
+        return den > 0 ? num / den : null;
+    };
+
+    if (sub.type === "haupt") {
+        const saAvg = weightedMean(sub.grades.filter(g => g.kind === "sa"));
+        const smAvg = weightedMean(sub.grades.filter(g => g.kind !== "sa"));
+        if (saAvg !== null && smAvg !== null) {
+            const [fSa, fSm] = sub.ratio === "2:1" ? [2, 1] : [1, 1];
+            return (saAvg * fSa + smAvg * fSm) / (fSa + fSm);
+        }
+        return saAvg !== null ? saAvg : smAvg;
     }
 
-    // Nebenfach: direkter gewichteter Schnitt aller Leistungen
-    let num = 0, den = 0;
-    for (const x of sub.grades) {
-        num += x.base * x.weight;
-        den += x.weight;
-    }
-    return den > 0 ? num / den : null;
+    return weightedMean(sub.grades);
 }
 
 function renderSubjects() {
@@ -277,8 +316,8 @@ function renderSubjects() {
     const allAvgs = [];
     const advAvgs = [];
 
-    if (subjects.length === 0) {
-        container.innerHTML = `<div class="info-box">Noch keine Fächer angelegt. Lege oben dein erstes Fach an.</div>`;
+    if (!subjects.length) {
+        container.innerHTML = `<div class="info-box">Wähle oben eine Vorlage oder lege ein Fach an.</div>`;
     } else {
         container.innerHTML = subjects.map(sub => {
             const avg = calcSubjectAverage(sub);
@@ -287,34 +326,27 @@ function renderSubjects() {
                 if (!sub.notAdvancement) advAvgs.push(avg);
             }
 
-            const typeLabel = sub.type === "haupt" ? "Hauptfach" : "Nebenfach";
-            const advBadge = sub.notAdvancement
-                ? `<span class="tag muted-tag">Kein Vorrückungsfach</span>`
-                : `<span class="tag">Vorrückungsfach</span>`;
-
             const kindOptions = sub.type === "haupt"
                 ? `<option value="sa">Schulaufgabe</option><option value="klein">Kleiner LN</option>`
                 : `<option value="gross">Großer LN</option><option value="klein">Kleiner LN</option>`;
 
-            const defaultW = sub.type === "haupt"
-                ? (sub.ratio === "2:1" ? 2 : 1)
-                : 2;
+            const defW = sub.type === "haupt" ? (sub.ratio === "2:1" ? 2 : 1) : 2;
 
             const pillsHtml = sub.grades.map(g => {
-                const kText = g.kind === "sa" ? "SA" : (g.kind === "gross" ? "Groß" : "Klein");
+                const kTxt = g.kind === "sa" ? "SA" : (g.kind === "gross" ? "Groß" : "Klein");
                 return `
                     <span class="grade-pill">
                         <strong>${esc(g.label)}</strong>
-                        <span class="cat-mini">${kText} · ×${fmt(g.weight, 1)}</span>
-                        <button type="button" class="del-x" onclick="removeGradeFromSubject(${sub.id}, ${g.id})" title="Löschen">×</button>
+                        <span class="cat-mini">${kTxt} · ×${fmt(g.weight, 1)}</span>
+                        <button type="button" class="del-x" onclick="removeGradeFromSubject(${sub.id}, ${g.id})">×</button>
                     </span>
                 `;
             }).join("");
 
-            const weightRowsHtml = sub.grades.map(g => `
+            const weightRows = sub.grades.map(g => `
                 <tr>
                     <td><strong>${esc(g.label)}</strong></td>
-                    <td>${g.kind === "sa" ? "Schulaufgabe" : (g.kind === "gross" ? "Großer LN" : "Kleiner LN")}</td>
+                    <td>${g.kind === "sa" ? "SA" : (g.kind === "gross" ? "Großer LN" : "Kleiner LN")}</td>
                     <td><input type="number" class="inline-num" step="0.5" min="0.5" value="${g.weight}" onchange="updateGradeWeight(${sub.id}, ${g.id}, this.value)"></td>
                 </tr>
             `).join("");
@@ -325,57 +357,54 @@ function renderSubjects() {
                         <div>
                             <div class="subject-title-row">
                                 <h3 class="subject-name">${esc(sub.name)}</h3>
-                                <span class="tag">${typeLabel}</span>
-                                ${advBadge}
+                                <span class="tag">${sub.type === "haupt" ? "Hauptfach" : "Nebenfach"}</span>
+                                ${sub.notAdvancement ? `<span class="tag muted-tag">Kein Vorrückungsfach</span>` : ""}
                             </div>
-                            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:8px;">
+                            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:6px;">
                                 <label class="checkbox-row">
                                     <input type="checkbox" ${sub.notAdvancement ? "checked" : ""} onchange="toggleSubjectNotAdv(${sub.id})">
                                     <span>Kein Vorrückungsfach</span>
                                 </label>
                                 ${sub.type === "haupt" ? `
-                                    <select style="width:auto; padding:4px 8px; font-size:0.8rem;" onchange="updateSubjectRatio(${sub.id}, this.value)">
-                                        <option value="2:1" ${sub.ratio === "2:1" ? "selected" : ""}>SA : Klein = 2 : 1</option>
-                                        <option value="1:1" ${sub.ratio === "1:1" ? "selected" : ""}>SA : Klein = 1 : 1</option>
+                                    <select style="width:auto; padding:3px 7px; font-size:0.78rem;" onchange="updateSubjectRatio(${sub.id}, this.value)">
+                                        <option value="2:1" ${sub.ratio === "2:1" ? "selected" : ""}>2 : 1</option>
+                                        <option value="1:1" ${sub.ratio === "1:1" ? "selected" : ""}>1 : 1</option>
                                     </select>
                                 ` : ""}
-                                <button type="button" class="btn btn-sm btn-danger" onclick="deleteSubject(${sub.id})">Fach löschen</button>
+                                <button type="button" class="btn btn-sm btn-danger" onclick="deleteSubject(${sub.id})">Löschen</button>
                             </div>
                         </div>
-                        <div class="subject-avg-box">
-                            <div class="subject-avg-num">${avg !== null ? fmt(avg, 2) : "–"}</div>
-                            <div class="hint">${sub.grades.length} ${sub.grades.length === 1 ? "Note" : "Noten"}</div>
-                        </div>
+                        <div class="subject-avg-num">${avg !== null ? fmt(avg, 2) : "–"}</div>
                     </div>
 
-                    <div class="form-grid-4" style="margin-top:10px; margin-bottom:6px;">
+                    <div class="form-grid-4" style="margin-top:8px; margin-bottom:4px;">
                         <div>
-                            <label for="gradeInp-${sub.id}">Note (z.B. 2, 2+, 3-)</label>
-                            <input type="text" id="gradeInp-${sub.id}" placeholder="1–6 (+ / -)">
+                            <label for="gradeInp-${sub.id}">Note</label>
+                            <input type="text" id="gradeInp-${sub.id}" placeholder="z.B. 2, 2+, 3-">
                         </div>
                         <div>
-                            <label for="kindSel-${sub.id}">Kategorie</label>
+                            <label for="kindSel-${sub.id}">Art</label>
                             <select id="kindSel-${sub.id}">${kindOptions}</select>
                         </div>
                         <div>
-                            <label for="weightInp-${sub.id}">Gewichtungsfaktor</label>
-                            <input type="number" id="weightInp-${sub.id}" step="0.5" min="0.5" value="${defaultW}">
+                            <label for="weightInp-${sub.id}">Faktor</label>
+                            <input type="number" id="weightInp-${sub.id}" step="0.5" min="0.5" value="${defW}">
                         </div>
                         <div>
-                            <button type="button" class="btn btn-primary" style="width:100%;" onclick="addGradeToSubject(${sub.id})">+ Note eintragen</button>
+                            <button type="button" class="btn btn-primary" style="width:100%;" onclick="addGradeToSubject(${sub.id})">Eintragen</button>
                         </div>
                     </div>
 
-                    <div class="grade-chips">${pillsHtml || `<span class="hint">Noch keine Noten eingetragen.</span>`}</div>
+                    <div class="grade-chips">${pillsHtml}</div>
 
                     ${sub.grades.length > 0 ? `
                         <details class="sub-panel">
-                            <summary><span>Einzelne Gewichtungen anpassen</span></summary>
+                            <summary><span>Gewichtung anpassen</span></summary>
                             <div class="sub-panel-body">
                                 <div class="table-wrap">
                                     <table>
                                         <thead><tr><th>Note</th><th>Art</th><th>Faktor</th></tr></thead>
-                                        <tbody>${weightRowsHtml}</tbody>
+                                        <tbody>${weightRows}</tbody>
                                     </table>
                                 </div>
                             </div>
@@ -392,25 +421,23 @@ function renderSubjects() {
     const advMeta = document.getElementById("overallMetaAdv");
 
     if (allAvgs.length > 0) {
-        const sAll = allAvgs.reduce((a, b) => a + b, 0) / allAvgs.length;
-        allEl.textContent = fmt(sAll, 2);
-        allMeta.textContent = `${allAvgs.length} Fächer mit Noten`;
+        allEl.textContent = fmt(allAvgs.reduce((a, b) => a + b, 0) / allAvgs.length, 2);
+        allMeta.textContent = `${allAvgs.length} Fächer`;
     } else {
         allEl.textContent = "–";
-        allMeta.textContent = "Noch keine Noten";
+        allMeta.textContent = "Keine Noten";
     }
 
     if (advAvgs.length > 0) {
-        const sAdv = advAvgs.reduce((a, b) => a + b, 0) / advAvgs.length;
-        advEl.textContent = fmt(sAdv, 2);
-        advMeta.textContent = `${advAvgs.length} Vorrückungsfächer`;
+        advEl.textContent = fmt(advAvgs.reduce((a, b) => a + b, 0) / advAvgs.length, 2);
+        advMeta.textContent = `${advAvgs.length} Fächer`;
     } else {
         advEl.textContent = "–";
-        advMeta.textContent = "Keine Vorrückungsfächer";
+        advMeta.textContent = "Keine Fächer";
     }
 }
 
-// --- VERTEILUNGS-RECHNER ---
+// --- VERTEILUNG ---
 const distCats = ["open", "open", "open", "open", "open", "open"];
 const distExact = [null, null, null, null, null, null];
 
@@ -420,7 +447,7 @@ function renderDistFilters() {
     if (!catG || !exG) return;
 
     catG.innerHTML = distCats.map((st, i) => {
-        const lbl = st === "must" ? "✓ ≥1×" : (st === "none" ? "✕ 0×" : "?");
+        const lbl = st === "must" ? "≥1×" : (st === "none" ? "0×" : "?");
         const cls = st === "must" ? "cat-pill state-must" : (st === "none" ? "cat-pill state-none" : "cat-pill");
         return `<div class="${cls}" onclick="cycleDistCat(${i})">${i + 1}: ${lbl}</div>`;
     }).join("");
@@ -428,7 +455,7 @@ function renderDistFilters() {
     exG.innerHTML = distExact.map((v, i) => `
         <div class="mini-exact">
             <label for="dex-${i}">${i + 1} genau</label>
-            <input type="number" id="dex-${i}" min="0" max="60" step="1" placeholder="frei" value="${v ?? ""}" oninput="setDistExact(${i}, this.value)">
+            <input type="number" id="dex-${i}" min="0" max="60" step="1" value="${v ?? ""}" oninput="setDistExact(${i}, this.value)">
         </div>
     `).join("");
 }
@@ -526,20 +553,20 @@ function runDistribution() {
     const known = parseStrictDigits1to6(document.getElementById("distKnown").value);
 
     if (isNaN(N) || !avgRaw || isNaN(Number(avgRaw))) {
-        out.innerHTML = `<div class="info-box">Gib oben die Anzahl der Arbeiten und den Schnitt ein, um die wahrscheinlichsten Verteilungen zu sehen.</div>`;
+        out.innerHTML = `<div class="info-box">Anzahl der Arbeiten und Schnitt eingeben.</div>`;
         return;
     }
     if (N < 1 || N > 60) {
-        out.innerHTML = `<div class="info-box err-box">Bitte 1 bis 60 Arbeiten angeben.</div>`;
+        out.innerHTML = `<div class="info-box err-box">1 bis 60 Arbeiten möglich.</div>`;
         return;
     }
     const targetAvg = parseFloat(avgRaw);
     if (targetAvg < 1 || targetAvg > 6) {
-        out.innerHTML = `<div class="info-box err-box">Schnitt muss zwischen 1,0 und 6,0 liegen.</div>`;
+        out.innerHTML = `<div class="info-box err-box">Schnitt zwischen 1,0 und 6,0.</div>`;
         return;
     }
     if (known.length > N) {
-        out.innerHTML = `<div class="info-box err-box">Mehr bekannte Noten als Arbeiten angegeben.</div>`;
+        out.innerHTML = `<div class="info-box err-box">Mehr bekannte Noten als Arbeiten.</div>`;
         return;
     }
 
@@ -554,7 +581,7 @@ function runDistribution() {
     for (let g = 0; g < 6; g++) {
         if (distExact[g] !== null) {
             if (knownCounts[g] > distExact[g]) {
-                out.innerHTML = `<div class="info-box err-box">Widerspruch bei Note ${g + 1}: mehr bekannte Noten als exakte Anzahl.</div>`;
+                out.innerHTML = `<div class="info-box err-box">Widerspruch bei Note ${g + 1}.</div>`;
                 return;
             }
             minCounts[g] = distExact[g];
@@ -562,7 +589,7 @@ function runDistribution() {
             if (distExact[g] === 0) mask[g] = false;
         } else if (distCats[g] === "none") {
             if (knownCounts[g] > 0) {
-                out.innerHTML = `<div class="info-box err-box">Widerspruch: Note ${g + 1} als 0× markiert, aber in bekannten Noten enthalten.</div>`;
+                out.innerHTML = `<div class="info-box err-box">Widerspruch bei Note ${g + 1}.</div>`;
                 return;
             }
             minCounts[g] = 0; maxCounts[g] = 0; mask[g] = false;
@@ -575,7 +602,7 @@ function runDistribution() {
     }
 
     if (fixedN > N) {
-        out.innerHTML = `<div class="info-box err-box">Vorgaben überschreiten die Anzahl der Arbeiten (${N}).</div>`;
+        out.innerHTML = `<div class="info-box err-box">Vorgaben überschreiten N.</div>`;
         return;
     }
 
@@ -584,7 +611,7 @@ function runDistribution() {
     if (dec === 0) {
         const ex = Math.round(targetAvg * N);
         if (Math.abs(ex / N - targetAvg) > 1e-6) {
-            out.innerHTML = `<div class="info-box err-box">Exakter Schnitt ${targetAvg} bei ${N} Arbeiten nicht möglich.</div>`;
+            out.innerHTML = `<div class="info-box err-box">Schnitt nicht erreichbar.</div>`;
             return;
         }
         minSum = ex; maxSum = ex;
@@ -602,11 +629,11 @@ function runDistribution() {
 
     if (remN === 0) {
         if (fixedSum < minSum || fixedSum > maxSum) {
-            out.innerHTML = `<div class="info-box err-box">Schnitt der festgelegten Noten passt nicht zum Ziel.</div>`;
+            out.innerHTML = `<div class="info-box err-box">Schnitt passt nicht.</div>`;
             return;
         }
     } else if (flex.length === 0 || remMaxS < remN * flex[0] || remMinS > remN * flex[flex.length - 1]) {
-        out.innerHTML = `<div class="info-box err-box">Keine gültige Verteilung mit diesen Bedingungen erreichbar.</div>`;
+        out.innerHTML = `<div class="info-box err-box">Keine Verteilung möglich.</div>`;
         return;
     }
 
@@ -693,7 +720,7 @@ function runDistribution() {
     }
 
     if (!filtered.length) {
-        out.innerHTML = `<div class="info-box err-box">Keine Treffer für diesen Filter.</div>`;
+        out.innerHTML = `<div class="info-box err-box">Keine Treffer für den Filter.</div>`;
         return;
     }
 
@@ -719,25 +746,25 @@ function runDistribution() {
     }).join("");
 
     out.innerHTML = `
-        <div class="info-box">${candidates.length.toLocaleString("de-DE")} Möglichkeiten geprüft · ${filtered.length.toLocaleString("de-DE")} passend</div>
+        <div class="info-box">${filtered.length.toLocaleString("de-DE")} Treffer</div>
         <div class="table-wrap">
             <table>
-                <thead><tr><th>#</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>Alle ${N} Noten</th><th>Ø</th><th>Streuung</th><th>Wahrsch.</th></tr></thead>
+                <thead><tr><th>#</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>Noten</th><th>Ø</th><th>Streuung</th><th>Anteil</th></tr></thead>
                 <tbody>${rowsHtml}</tbody>
             </table>
         </div>
     `;
 }
 
-// --- PUNKTE-SCHLÜSSEL (0,5er-SCHRITTE) ---
+// --- PUNKTE-SCHLÜSSEL ---
 const DEF_PCT = [92, 81, 67, 50, 30, 0];
 let keyRows = [
-    { grade: "Note 1", pct: 92, pts: 0, locked: false },
-    { grade: "Note 2", pct: 81, pts: 0, locked: false },
-    { grade: "Note 3", pct: 67, pts: 0, locked: false },
-    { grade: "Note 4", pct: 50, pts: 0, locked: false },
-    { grade: "Note 5", pct: 30, pts: 0, locked: false },
-    { grade: "Note 6", pct: 0,  pts: 0, locked: true }
+    { grade: "1", pct: 92, pts: 0, locked: false },
+    { grade: "2", pct: 81, pts: 0, locked: false },
+    { grade: "3", pct: 67, pts: 0, locked: false },
+    { grade: "4", pct: 50, pts: 0, locked: false },
+    { grade: "5", pct: 30, pts: 0, locked: false },
+    { grade: "6", pct: 0,  pts: 0, locked: true }
 ];
 
 function syncKeyFromMax() {
@@ -812,7 +839,7 @@ function renderKeyTable() {
     const bodyEl = document.getElementById("keyTableBody");
 
     if (isNaN(maxP) || maxP < 0.5) {
-        sumEl.innerHTML = `<div class="info-box">Maximalpunkte eingeben (z.B. 60 oder 45,5).</div>`;
+        sumEl.innerHTML = "";
         bodyEl.innerHTML = "";
         return;
     }
@@ -823,19 +850,19 @@ function renderKeyTable() {
         if (hitIdx === -1) hitIdx = 5;
         const pct = (gotP / maxP) * 100;
         const nextText = hitIdx > 0
-            ? ` · Noch ${fmt(Math.max(0, roundHalf(keyRows[hitIdx - 1].pts - gotP)), 1)} Pkt. bis ${keyRows[hitIdx - 1].grade}`
+            ? ` · ${fmt(Math.max(0, roundHalf(keyRows[hitIdx - 1].pts - gotP)), 1)} Pkt. bis Note ${keyRows[hitIdx - 1].grade}`
             : "";
-        sumEl.innerHTML = `<div class="info-box" style="font-weight:600;">${fmt(gotP, 1)} / ${fmt(maxP, 1)} Pkt. (${fmt(pct, 1)} %) → ${keyRows[hitIdx].grade}${nextText}</div>`;
+        sumEl.innerHTML = `<div class="info-box" style="font-weight:600;">${fmt(gotP, 1)} / ${fmt(maxP, 1)} Pkt. (${fmt(pct, 1)} %) → Note ${keyRows[hitIdx].grade}${nextText}</div>`;
     } else {
         sumEl.innerHTML = "";
     }
 
     bodyEl.innerHTML = keyRows.map((r, i) => `
         <tr style="${i === hitIdx ? "background:var(--primary-soft);" : ""}">
-            <td><strong>${r.grade}</strong></td>
+            <td><strong>Note ${r.grade}</strong></td>
             <td><input type="number" class="inline-num" step="0.5" min="0" max="100" value="${r.pct.toFixed(1)}" onchange="editKeyPct(${i}, this.value)"> %</td>
             <td><input type="number" class="inline-num" step="0.5" min="0" max="${maxP}" value="${r.pts.toFixed(1)}" onchange="editKeyPts(${i}, this.value)"> Pkt.</td>
-            <td><button type="button" class="btn btn-sm" onclick="toggleKeyLock(${i})">${r.locked ? "🔒" : "🔓"}</button></td>
+            <td><button type="button" class="btn btn-sm" onclick="toggleKeyLock(${i})">${r.locked ? "Fix" : "Auto"}</button></td>
         </tr>
     `).join("");
 }
@@ -865,7 +892,7 @@ function updateComparison() {
     out.innerHTML = `
         <div class="table-wrap">
             <table>
-                <thead><tr><th>Wert</th><th>Reihe A</th><th>Reihe B</th><th>Diff (B−A)</th></tr></thead>
+                <thead><tr><th>Wert</th><th>A</th><th>B</th><th>B−A</th></tr></thead>
                 <tbody>
                     <tr><td>Anzahl</td><td>${a ? a.n : "–"}</td><td>${b ? b.n : "–"}</td><td>${(a && b) ? (b.n - a.n) : "–"}</td></tr>
                     <tr><td>Schnitt</td><td><strong>${a ? fmt(a.mean) : "–"}</strong></td><td><strong>${b ? fmt(b.mean) : "–"}</strong></td><td><strong>${diff}</strong></td></tr>
@@ -877,7 +904,7 @@ function updateComparison() {
     `;
 }
 
-// --- KOMPLETTE PRÜFUNG SPEICHERN & LADEN ---
+// --- VERLAUF ---
 function getArchive() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.archive)) || []; }
     catch { return []; }
@@ -885,7 +912,7 @@ function getArchive() {
 
 function saveFullSnapshot() {
     const inp = document.getElementById("archiveName");
-    const title = inp.value.trim() || `Stand ${new Date().toLocaleDateString("de-DE")}`;
+    const title = inp.value.trim() || new Date().toLocaleDateString("de-DE");
     const snap = {
         id: Date.now(),
         title,
@@ -946,14 +973,14 @@ function renderArchive() {
     const list = getArchive();
     const el = document.getElementById("archiveList");
     if (!list.length) {
-        el.innerHTML = `<div class="info-box">Noch keine kompletten Prüfungen gespeichert.</div>`;
+        el.innerHTML = `<div class="info-box">Noch nichts gespeichert.</div>`;
         return;
     }
     el.innerHTML = list.map(item => `
         <div class="archive-card">
             <div>
                 <strong>${esc(item.title)}</strong>
-                <div class="hint">${(item.subjects || []).length} Fächer gespeichert</div>
+                <div class="hint">${(item.subjects || []).length} Fächer</div>
             </div>
             <div style="display:flex; gap:6px;">
                 <button type="button" class="btn btn-primary btn-sm" onclick="loadSnapshot(${item.id})">Laden</button>
@@ -963,8 +990,8 @@ function renderArchive() {
     `).join("");
 }
 
-// --- START ---
 initTheme();
+renderPresets();
 loadSubjects();
 renderSubjects();
 renderDistFilters();
