@@ -212,7 +212,6 @@
         .btn-primary:hover { background: #1d4ed8; }
         .btn-danger { color: #b91c1c; }
 
-        /* KATEGORIEN & EXAKTE ANZAHL */
         .cat-toolbar {
             display: flex;
             flex-wrap: wrap;
@@ -278,7 +277,6 @@
             font-size: 0.85rem;
         }
 
-        /* RADAR & TABELLE */
         .radar-grid {
             display: grid;
             grid-template-columns: repeat(6, 1fr);
@@ -406,7 +404,7 @@
 <div class="container">
     <header>
         <h1>Noten-Suite &amp; Prüfungs-Analyse</h1>
-        <p class="subtitle">Live-Kennzahlen, Verteilungs-Algorithmus, Notenschlüssel, Vergleich &amp; Verlauf</p>
+        <p class="subtitle">Live-Kennzahlen, Verteilungs-Algorithmus, Notenschlüssel (0,5-Pkt.-Raster), Vergleich &amp; Verlauf</p>
     </header>
 
     <!-- 1. LIVE-DURCHSCHNITT, STREUUNG & SCHIEFE -->
@@ -421,7 +419,7 @@
                     <label for="liveGradesInput">Noten eingeben (1–6, z.B. „123214“ oder „1 2 3 2 1“):</label>
                     <input type="text" id="liveGradesInput" placeholder="Noten eintippen..." oninput="updateLiveStats()">
                 </div>
-                <div style="width:160px;">
+                <div style="width:170px;">
                     <label for="saveExamTitle">Titel (für Verlauf)</label>
                     <input type="text" id="saveExamTitle" placeholder="z.B. Mathe Klausur 1">
                 </div>
@@ -450,7 +448,7 @@
             <div class="grid-compact">
                 <div>
                     <label for="classSizeInput">Arbeiten (N)</label>
-                    <input type="number" id="classSizeInput" value="25" min="1" max="60" oninput="scheduleDistributionUpdate()">
+                    <input type="number" id="classSizeInput" value="25" min="1" max="60" step="1" oninput="scheduleDistributionUpdate()">
                 </div>
                 <div>
                     <label for="classAvgInput">Schnitt (Ø)</label>
@@ -530,20 +528,20 @@
         </div>
     </details>
 
-    <!-- 3. PUNKTE-ZU-NOTE-SCHLÜSSEL -->
+    <!-- 3. PUNKTE-ZU-NOTE-SCHLÜSSEL (MAXIMAL HALBE PUNKTE) -->
     <details class="card">
         <summary>
-            <span>3. Punkte-zu-Note-Schlüssel</span>
+            <span>3. Punkte-zu-Note-Schlüssel (max. 0,5-Pkt.-Schritte)</span>
             <span id="summaryKeyBadge" style="font-size:0.82rem; color:var(--primary); font-weight:600; margin-left:auto; margin-right:10px;"></span>
         </summary>
         <div class="card-body">
             <div class="grid-3" style="margin-bottom:8px;">
                 <div>
-                    <label for="maxPtsInput">Maximale Punkte</label>
-                    <input type="number" id="maxPtsInput" value="60" min="1" step="0.5" oninput="updateKeyCalculator()">
+                    <label for="maxPtsInput">Maximale Punkte (0,5 / 1,0)</label>
+                    <input type="number" id="maxPtsInput" value="60" min="0.5" step="0.5" oninput="updateKeyCalculator()">
                 </div>
                 <div>
-                    <label for="gotPtsInput">Erreichte Punkte</label>
+                    <label for="gotPtsInput">Erreichte Punkte (0,5 / 1,0)</label>
                     <input type="number" id="gotPtsInput" value="46" min="0" step="0.5" oninput="updateKeyCalculator()">
                 </div>
                 <div>
@@ -593,6 +591,28 @@
 </div>
 
 <script>
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    // Rundet Punkte strikt auf maximale halbe Punkte (0,5-Schritte)
+    function roundToHalfPoint(val) {
+        return Math.round(val * 2) / 2;
+    }
+
+    function parseHalfPointInput(rawStr) {
+        const cleaned = String(rawStr ?? "").trim().replace(",", ".");
+        if (cleaned === "") return NaN;
+        const parsed = parseFloat(cleaned);
+        if (isNaN(parsed)) return NaN;
+        return roundToHalfPoint(parsed);
+    }
+
     function parseStrictGrades(rawText) {
         const raw = (rawText || "").trim();
         if (!raw) return [];
@@ -608,7 +628,6 @@
         return num.toFixed(decimals).replace('.', ',');
     }
 
-    // Berechnet Schnitt, Streuung (Populations-SD) und Schiefe (Pearson / Moment-Schiefe)
     function calcMoments(grades) {
         const n = grades.length;
         if (n === 0) return null;
@@ -696,7 +715,7 @@
             return `
                 <div class="exact-box">
                     <label for="exactG${g}">Note ${g} (genau)</label>
-                    <input type="number" id="exactG${g}" min="0" max="60" placeholder="frei" value="${dispVal}" oninput="setExactCount(${idx}, this.value)">
+                    <input type="number" id="exactG${g}" min="0" max="60" step="1" placeholder="frei" value="${dispVal}" oninput="setExactCount(${idx}, this.value)">
                 </div>
             `;
         }).join('');
@@ -724,13 +743,12 @@
             exactGradeCounts[idx] = null;
         } else {
             const n = parseInt(trimmed, 10);
-            exactGradeCounts[idx] = (!isNaN(n) && n >= 0) ? n : null;
+            exactGradeCounts[idx] = (!isNaN(n) && n >= 0) ? Math.floor(n) : null;
         }
         if (exactGradeCounts[idx] > 0 && categoryStates[idx] === 'none') {
             categoryStates[idx] = 'open';
             renderCategoryControls();
         } else {
-            // Summary aktualisieren ohne Fokus aus Input zu werfen
             updateCatSummaryTextOnly();
         }
         updateDistributionLive();
@@ -883,7 +901,6 @@
         const knownCounts = [0, 0, 0, 0, 0, 0];
         for (const g of knownGrades) knownCounts[g - 1]++;
 
-        // Prüfen, ob bekannte Einzelnoten den exakten Vorgaben widersprechen
         for (let g = 0; g < 6; g++) {
             if (exactGradeCounts[g] !== null && knownCounts[g] > exactGradeCounts[g]) {
                 out.innerHTML = `<div class="info-msg error-msg">Widerspruch: Bei Note ${g + 1} sind ${knownCounts[g]} bekannte Noten eingegeben, aber exakt ${exactGradeCounts[g]} festgelegt.</div>`;
@@ -895,7 +912,6 @@
             }
         }
 
-        // Min- und Max-Grenzen pro Note kombinieren (aus bekannten Noten, Kategorie-Filter & exakter Anzahl)
         const minCounts = [0, 0, 0, 0, 0, 0];
         const maxCounts = [N, N, N, N, N, N];
         const allowedMask = [true, true, true, true, true, true];
@@ -957,7 +973,6 @@
         const remMinSum = minSum - fixedSum;
         const remMaxSum = maxSum - fixedSum;
 
-        // Flexible Noten (wo maxCounts[g] > minCounts[g])
         const flexGrades = [];
         for (let g = 0; g < 6; g++) {
             if (maxCounts[g] > minCounts[g]) flexGrades.push(g + 1);
@@ -1078,7 +1093,6 @@
 
         candidates.sort((a, b) => b.score - a.score);
 
-        // Wahrscheinlichkeiten über alle gültigen Verteilungen normieren
         const maxScore = candidates[0].score;
         let sumExp = 0;
         const weights = new Float64Array(candidates.length);
@@ -1099,30 +1113,31 @@
             }
         }
 
-        // Schiefe- & Streuungs-Filter auf Kandidaten anwenden
-        const filtered = candidates.filter(item => {
-            if (skewFilter === 'light' && !(item.skew < -0.15)) return false;
-            if (skewFilter === 'heavy' && !(item.skew > 0.15)) return false;
-            if (skewFilter === 'balanced' && !(Math.abs(item.skew) <= 0.55)) return false;
+        const filteredWithIdx = [];
+        for (let i = 0; i < candidates.length; i++) {
+            const item = candidates[i];
+            if (skewFilter === 'light' && !(item.skew < -0.15)) continue;
+            if (skewFilter === 'heavy' && !(item.skew > 0.15)) continue;
+            if (skewFilter === 'balanced' && !(Math.abs(item.skew) <= 0.55)) continue;
 
-            if (spreadFilter === 'tight' && !(item.std <= 0.95)) return false;
-            if (spreadFilter === 'medium' && !(item.std >= 0.90 && item.std <= 1.35)) return false;
-            if (spreadFilter === 'wide' && !(item.std >= 1.25)) return false;
-            return true;
-        });
+            if (spreadFilter === 'tight' && !(item.std <= 0.95)) continue;
+            if (spreadFilter === 'medium' && !(item.std >= 0.90 && item.std <= 1.35)) continue;
+            if (spreadFilter === 'wide' && !(item.std >= 1.25)) continue;
+            filteredWithIdx.push({ item, origIdx: i });
+        }
 
-        if (filtered.length === 0) {
+        if (filteredWithIdx.length === 0) {
             out.innerHTML = `<div class="info-msg error-msg">Keine Verteilung erfüllt gleichzeitig den Schnitt und den gewählten Schiefe-/Streuungs-Filter. Lockere den Filter etwas.</div>`;
             return;
         }
 
-        const top10 = filtered.slice(0, 10);
+        const top10 = filteredWithIdx.slice(0, 10);
 
         let html = `
             <details class="sub-panel" open>
                 <summary>
                     <span>Einzelnoten-Radar (über ${candidates.length.toLocaleString('de-DE')} Varianten)</span>
-                    <span style="font-size:0.75rem; color:var(--muted); margin-left:auto; margin-right:8px;">Treffer: ${filtered.length.toLocaleString('de-DE')}</span>
+                    <span style="font-size:0.75rem; color:var(--muted); margin-left:auto; margin-right:8px;">Treffer: ${filteredWithIdx.length.toLocaleString('de-DE')}</span>
                 </summary>
                 <div class="sub-panel-body">
                     <div class="radar-grid">
@@ -1153,8 +1168,7 @@
                 <tbody>
         `;
 
-        top10.forEach((item, i) => {
-            const origIdx = candidates.indexOf(item);
+        top10.forEach(({ item, origIdx }, i) => {
             const prob = (weights[origIdx] / sumExp) * 100;
             const countCells = item.counts.map(c => `<td><strong>${c}</strong></td>`).join('');
 
@@ -1187,20 +1201,22 @@
         out.innerHTML = html;
     }
 
-    // 3. PUNKTE-ZU-NOTE-SCHLÜSSEL
+    // 3. PUNKTE-ZU-NOTE-SCHLÜSSEL (MAXIMAL 0,5-PUNKT-SCHRITTE)
     function updateKeyCalculator() {
-        const maxPts = parseFloat(document.getElementById('maxPtsInput').value);
-        const gotPts = parseFloat(document.getElementById('gotPtsInput').value);
+        const rawMax = parseHalfPointInput(document.getElementById('maxPtsInput').value);
+        const rawGot = parseHalfPointInput(document.getElementById('gotPtsInput').value);
         const mode = document.getElementById('keyModeSelect').value;
         const out = document.getElementById('keyOutput');
         const badge = document.getElementById('summaryKeyBadge');
 
-        if (isNaN(maxPts) || maxPts <= 0 || isNaN(gotPts) || gotPts < 0 || gotPts > maxPts) {
-            out.innerHTML = `<div class="info-msg error-msg">Bitte gültige Punkte eingeben (erreichte Punkte ≤ maximale Punkte).</div>`;
+        if (isNaN(rawMax) || rawMax < 0.5 || isNaN(rawGot) || rawGot < 0 || rawGot > rawMax) {
+            out.innerHTML = `<div class="info-msg error-msg">Bitte gültige Punkte in 0,5er- oder 1er-Schritten eingeben (erreichte Punkte ≤ maximale Punkte).</div>`;
             badge.textContent = "";
             return;
         }
 
+        const maxPts = rawMax;
+        const gotPts = rawGot;
         const pct = (gotPts / maxPts) * 100;
         let gradeLabel = "";
         let nextInfo = "";
@@ -1217,13 +1233,14 @@
         if (mode === 'standard') {
             const exactG = pct >= 50 ? 4 - ((pct - 50) / 50) * 3 : 6 - (pct / 50) * 2;
             gradeLabel = `${fmtNum(exactG, 2)} (gerundet ${Math.round(exactG)})`;
-            // Nächste 0,5-Stufe nach oben suchen
-            const nextBetter = Math.max(1.0, (Math.ceil(exactG * 2) - 1) / 2);
-            if (exactG > 1.0) {
+            // Nächste bessere 0,5er-Notenstufe berechnen
+            const currentHalfStep = Math.floor((exactG - 1e-6) * 2) / 2;
+            const nextBetter = Math.max(1.0, currentHalfStep);
+            if (exactG > 1.0 + 1e-6) {
                 const reqPct = nextBetter <= 4 ? 50 + ((4 - nextBetter) / 3) * 50 : ((6 - nextBetter) / 2) * 50;
-                const reqPts = (reqPct / 100) * maxPts;
-                const diffPts = Math.max(0, reqPts - gotPts);
-                nextInfo = ` · Noch ${fmtNum(diffPts, 1)} Pkt. bis Note ${fmtNum(nextBetter, 1)}`;
+                const reqPtsHalf = roundToHalfPoint((reqPct / 100) * maxPts);
+                const diffPtsHalf = Math.max(0, roundToHalfPoint(reqPtsHalf - gotPts));
+                nextInfo = ` · Noch ${fmtNum(diffPtsHalf, 1)} Pkt. bis Note ${fmtNum(nextBetter, 1)}`;
             }
         } else {
             const hit = steps.find(s => pct >= s.minPct);
@@ -1231,16 +1248,17 @@
             const idx = steps.indexOf(hit);
             if (idx > 0) {
                 const targetStep = steps[idx - 1];
-                const reqPts = (targetStep.minPct / 100) * maxPts;
-                nextInfo = ` · Noch ${fmtNum(Math.max(0, reqPts - gotPts), 1)} Pkt. bis ${targetStep.name}`;
+                const reqPtsHalf = roundToHalfPoint((targetStep.minPct / 100) * maxPts);
+                const diffPtsHalf = Math.max(0, roundToHalfPoint(reqPtsHalf - gotPts));
+                nextInfo = ` · Noch ${fmtNum(diffPtsHalf, 1)} Pkt. bis ${targetStep.name}`;
             }
         }
 
         badge.textContent = `${fmtNum(pct, 1)} % → ${gradeLabel}`;
 
         let rowsHtml = steps.map(s => {
-            const minP = (s.minPct / 100) * maxPts;
-            return `<tr><td><strong>${s.name}</strong></td><td>ab ${s.minPct} %</td><td>ab ${fmtNum(minP, 1)} Pkt.</td></tr>`;
+            const minPHalf = roundToHalfPoint((s.minPct / 100) * maxPts);
+            return `<tr><td><strong>${s.name}</strong></td><td>ab ${s.minPct} %</td><td>ab ${fmtNum(minPHalf, 1)} Pkt.</td></tr>`;
         }).join('');
 
         out.innerHTML = `
@@ -1249,7 +1267,7 @@
             </div>
             <div class="table-wrap">
                 <table>
-                    <thead><tr><th>Note</th><th>Prozentgrenze</th><th>Mindestpunkte</th></tr></thead>
+                    <thead><tr><th>Note</th><th>Prozentgrenze</th><th>Mindestpunkte (0,5er-Raster)</th></tr></thead>
                     <tbody>${rowsHtml}</tbody>
                 </table>
             </div>
@@ -1353,7 +1371,7 @@
         container.innerHTML = list.map(item => `
             <div class="history-item">
                 <div>
-                    <strong>${item.title}</strong>
+                    <strong>${escapeHtml(item.title)}</strong>
                     <span style="color:var(--muted);">(${item.n} Noten · Ø ${fmtNum(item.mean)} · σ ${fmtNum(item.std)} · Schiefe ${fmtNum(item.skew)})</span>
                 </div>
                 <div style="display:flex; gap:5px; flex-wrap:wrap;">
