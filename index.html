@@ -29,7 +29,7 @@
         }
 
         .container {
-            max-width: 920px;
+            max-width: 940px;
             margin: 0 auto;
         }
 
@@ -155,8 +155,8 @@
             text-align: left;
             font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
             font-size: 0.85rem;
-            line-height: 1.4;
-            min-width: 220px;
+            line-height: 1.45;
+            min-width: 240px;
         }
 
         .g-known {
@@ -258,17 +258,17 @@
         <div class="grid-3">
             <div>
                 <label for="classSizeInput">Anzahl der Arbeiten</label>
-                <input type="number" id="classSizeInput" value="20" min="1" max="45" oninput="updateDistributionLive()">
+                <input type="number" id="classSizeInput" value="25" min="1" max="45" oninput="updateDistributionLive()">
             </div>
             <div>
                 <label for="classAvgInput">Notendurchschnitt</label>
-                <input type="text" id="classAvgInput" value="2,8" oninput="updateDistributionLive()">
-                <div class="hint" id="decimalsHint">Erkannte Nachkommastellen: 1</div>
+                <input type="text" id="classAvgInput" value="2,68" oninput="updateDistributionLive()">
+                <div class="hint" id="decimalsHint">Erkannte Nachkommastellen: 2</div>
             </div>
             <div>
                 <div class="range-header">
                     <label for="spreadRange" style="margin:0;">Streuung (σ)</label>
-                    <span class="range-val" id="spreadVal">1.00 (Normal)</span>
+                    <span class="range-val" id="spreadVal">1,00 (Normal)</span>
                 </div>
                 <input type="range" id="spreadRange" min="0.55" max="1.75" step="0.05" value="1.00" oninput="updateDistributionLive()">
                 <div class="hint">Klein = eng am Schnitt, Groß = breit gestreut</div>
@@ -278,7 +278,7 @@
         <div>
             <label for="knownGradesInput">Bereits bekannte Noten (optional – 1 bis 6, z.B. „1 2 4“ oder „124“):</label>
             <input type="text" id="knownGradesInput" placeholder="Leer lassen für reine Schätzung, oder bekannte Noten eintippen..." oninput="updateDistributionLive()">
-            <div class="hint" id="knownStatusHint">0 bekannte Noten → alle 20 Noten werden statistisch ermittelt.</div>
+            <div class="hint" id="knownStatusHint">0 bekannte Noten → alle 25 Noten werden statistisch ermittelt.</div>
         </div>
 
         <div id="distributionOutput"></div>
@@ -343,7 +343,6 @@
         logFact[i] = logFact[i - 1] + Math.log(i);
     }
 
-    // Standardnormalverteilung CDF (Abramowitz & Stegun Approximation, Genauigkeit < 1.5e-7)
     function normalCDF(x) {
         const sign = x < 0 ? -1 : 1;
         const absX = Math.abs(x) / Math.SQRT2;
@@ -354,26 +353,43 @@
         return 0.5 * (1 + sign * erf);
     }
 
-    // Berechnet realistische Wahrscheinlichkeiten p_1 .. p_6 über zensierte Normalverteilung
-    // (Flächenanteile der Intervalle (-inf, 1.5], (1.5, 2.5], ..., (5.5, +inf))
-    function computeGradePriorProbs(mean, sigma) {
+    // Kalibriert den zugrunde liegenden Mittelwert mu so, dass der diskrete Erwartungswert
+    // sum(g * p_g) exakt dem gewünschten Klassendurchschnitt entspricht.
+    function computeCalibratedPriorProbs(targetMean, sigma) {
         const bounds = [-Infinity, 1.5, 2.5, 3.5, 4.5, 5.5, Infinity];
-        // Empirische Anpassung echter deutscher Schulnoten (6er sind seltener als reine Symmetrie vermuten lässt)
-        const empiricalMultiplier = [1.02, 1.05, 1.06, 1.00, 0.88, 0.62];
-        const probs = [];
-        let sum = 0;
+        // Leichte empirische Dämpfung extremer Randnoten (insb. 6er)
+        const empiricalWeight = [0.96, 1.04, 1.08, 1.02, 0.88, 0.58];
 
-        for (let g = 0; g < 6; g++) {
-            const zLow = bounds[g] === -Infinity ? -Infinity : (bounds[g] - mean) / sigma;
-            const zHigh = bounds[g + 1] === Infinity ? Infinity : (bounds[g + 1] - mean) / sigma;
-            const pLow = zLow === -Infinity ? 0 : normalCDF(zLow);
-            const pHigh = zHigh === Infinity ? 1 : normalCDF(zHigh);
-            const p = Math.max(1e-6, (pHigh - pLow) * empiricalMultiplier[g]);
-            probs.push(p);
-            sum += p;
+        function probsForMu(mu) {
+            const raw = [];
+            let s = 0;
+            for (let g = 0; g < 6; g++) {
+                const zLow = bounds[g] === -Infinity ? -Infinity : (bounds[g] - mu) / sigma;
+                const zHigh = bounds[g + 1] === Infinity ? Infinity : (bounds[g + 1] - mu) / sigma;
+                const pLow = zLow === -Infinity ? 0 : normalCDF(zLow);
+                const pHigh = zHigh === Infinity ? 1 : normalCDF(zHigh);
+                const p = Math.max(1e-7, (pHigh - pLow) * empiricalWeight[g]);
+                raw.push(p);
+                s += p;
+            }
+            return raw.map(p => p / s);
         }
 
-        return probs.map(p => p / sum);
+        // Bisektionssuche für mu, sodass Erwartungswert == targetMean
+        let low = 0.0, high = 7.0;
+        for (let iter = 0; iter < 30; iter++) {
+            const mid = 0.5 * (low + high);
+            const p = probsForMu(mid);
+            let expMean = 0;
+            for (let g = 0; g < 6; g++) expMean += (g + 1) * p[g];
+            if (expMean < targetMean) {
+                low = mid;
+            } else {
+                high = mid;
+            }
+        }
+
+        return probsForMu(0.5 * (low + high));
     }
 
     function detectDecimalsAndValue(rawAvgStr) {
@@ -473,11 +489,12 @@
             return;
         }
 
-        // Prior-Wahrscheinlichkeiten für jede Note 1..6 bestimmen
-        const probs = computeGradePriorProbs(targetAvg, sigma);
+        // Kalibrierte Prior-Wahrscheinlichkeiten für jede Note 1..6
+        const probs = computeCalibratedPriorProbs(targetAvg, sigma);
         const logProbs = probs.map(p => Math.log(p));
+        const targetVariance = sigma * sigma;
 
-        // Kombinatorische Suche (Backtracking) über alle gültigen Ergänzungen
+        // Korrekte kombinatorische Tiefensuche (Backtracking)
         const candidates = [];
         const remCounts = [0, 0, 0, 0, 0, 0];
 
@@ -496,37 +513,55 @@
                         minCounts[5] + remCounts[5]
                     ];
 
-                    // Exakte Multinomial-Log-Likelihood + Distanzstrafe zum exakten Zielwert
                     let totalSum = 0;
-                    let logScore = logFact[N];
                     for (let g = 0; g < 6; g++) {
                         totalSum += total[g] * (g + 1);
-                        logScore -= logFact[total[g]];
-                        logScore += total[g] * logProbs[g];
+                    }
+                    const exactAvg = totalSum / N;
+
+                    // 1. Multinomiale Log-Wahrscheinlichkeit: log(N!) - sum(log(c_g!)) + sum(c_g * log(p_g))
+                    let logMultinomial = logFact[N];
+                    let empVarSum = 0;
+                    for (let g = 0; g < 6; g++) {
+                        const c = total[g];
+                        const diff = (g + 1) - exactAvg;
+                        empVarSum += c * diff * diff;
+                        logMultinomial -= logFact[c];
+                        logMultinomial += c * logProbs[g];
                     }
 
-                    const exactAvg = totalSum / N;
-                    // Leichte Bevorzugung von Verteilungen, deren echter Schnitt näher am eingegebenen Wert liegt
+                    // 2. Empirische Streuung mit eingestelltem Sigma abgleichen (verhindert unrealistische U-Kurven)
+                    const empVariance = empVarSum / N;
+                    const varPenalty = Math.abs(empVariance - targetVariance) * (N * 0.45);
+
+                    // 3. Abstand zum eingegebenen Schnitt leicht gewichten
                     const avgDiff = Math.abs(exactAvg - targetAvg);
-                    logScore -= avgDiff * N * 0.35;
+                    const avgPenalty = avgDiff * N * 0.4;
+
+                    const finalScore = logMultinomial - varPenalty - avgPenalty;
 
                     candidates.push({
                         counts: total,
                         added: [...remCounts],
                         exactAvg: exactAvg,
-                        score: logScore
+                        score: finalScore
                     });
                 }
                 return;
             }
 
-            const minRestPerStudent = grade + 1;
-            const minC = grade < 6
-                ? Math.max(0, Math.ceil((sumMin - leftStudents * 6) / (grade - 6) - 1e-9))
-                : leftStudents;
+            // Exakte Bounds für c in [0 .. leftStudents]:
+            // Verbleibende (leftStudents - c) Schüler haben Noten >= (grade + 1) und <= 6:
+            // Bedingung 1 (Min-Summe): c*grade + (leftStudents - c)*6 >= sumMin
+            //   => leftStudents*6 - sumMin >= c*(6 - grade)
+            //   => c <= Math.floor((leftStudents*6 - sumMin) / (6 - grade))
+            // Bedingung 2 (Max-Summe): c*grade + (leftStudents - c)*(grade + 1) <= sumMax
+            //   => leftStudents*(grade + 1) - c <= sumMax
+            //   => c >= leftStudents*(grade + 1) - sumMax
+            const minC = Math.max(0, leftStudents * (grade + 1) - sumMax);
             const maxC = Math.min(
                 leftStudents,
-                sumMax - leftStudents * minRestPerStudent
+                Math.floor((leftStudents * 6 - sumMin) / (6 - grade))
             );
 
             for (let c = minC; c <= maxC; c++) {
@@ -584,11 +619,8 @@
 
         top10.forEach((item, i) => {
             const prob = (Math.exp(item.score - maxScore) / sumExp) * 100;
-
-            // Spiegel-Zellen (Anzahl pro Note 1..6)
             const countCells = item.counts.map(c => `<td><strong>${c}</strong></td>`).join('');
 
-            // Einzelne N Noten aufbauen (bekannte Noten hervorgehoben)
             const individualBadges = [];
             for (let g = 0; g < 6; g++) {
                 const gradeNum = g + 1;
