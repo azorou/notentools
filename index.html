@@ -11,9 +11,10 @@
             --text: #0f172a;
             --muted: #64748b;
             --primary: #2563eb;
-            --primary-hover: #1d4ed8;
             --border: #e2e8f0;
             --accent-bg: #eff6ff;
+            --warn-bg: #fef2f2;
+            --warn-text: #b91c1c;
         }
 
         * { box-sizing: border-box; }
@@ -28,24 +29,13 @@
         }
 
         .container {
-            max-width: 820px;
+            max-width: 860px;
             margin: 0 auto;
         }
 
-        header {
-            margin-bottom: 24px;
-        }
-
-        h1 {
-            font-size: 1.6rem;
-            margin: 0 0 4px 0;
-        }
-
-        .subtitle {
-            color: var(--muted);
-            font-size: 0.95rem;
-            margin: 0;
-        }
+        header { margin-bottom: 24px; }
+        h1 { font-size: 1.6rem; margin: 0 0 4px 0; }
+        .subtitle { color: var(--muted); font-size: 0.95rem; margin: 0; }
 
         .card {
             background: var(--card);
@@ -70,7 +60,7 @@
             margin-bottom: 6px;
         }
 
-        input[type="text"], input[type="number"], select {
+        input[type="text"], input[type="number"] {
             width: 100%;
             padding: 10px 12px;
             border: 1px solid var(--border);
@@ -79,7 +69,13 @@
             background: #fff;
         }
 
-        input:focus, select:focus {
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        input:focus {
             outline: none;
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
@@ -99,13 +95,13 @@
             margin-bottom: 14px;
         }
 
-        @media (max-width: 600px) {
+        @media (max-width: 640px) {
             .grid-2, .grid-3 { grid-template-columns: 1fr; }
         }
 
         .live-stats {
             display: flex;
-            gap: 20px;
+            gap: 24px;
             flex-wrap: wrap;
             background: var(--accent-bg);
             border: 1px solid #bfdbfe;
@@ -121,76 +117,27 @@
         }
 
         .stat-item strong {
-            font-size: 1.35rem;
+            font-size: 1.3rem;
             color: var(--primary);
         }
 
-        .known-grades-bar {
+        .range-header {
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
+            justify-content: space-between;
             align-items: center;
-            margin-top: 8px;
-            margin-bottom: 16px;
+            margin-bottom: 6px;
         }
 
-        .grade-btn {
-            background: #f1f5f9;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 6px 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.15s;
+        .range-val {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--primary);
         }
-
-        .grade-btn:hover { background: #e2e8f0; }
-
-        .chip-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            min-height: 34px;
-            padding: 6px;
-            border: 1px dashed var(--border);
-            border-radius: 6px;
-            margin-bottom: 16px;
-            align-items: center;
-        }
-
-        .chip {
-            background: var(--primary);
-            color: #fff;
-            padding: 3px 10px;
-            border-radius: 999px;
-            font-size: 0.88rem;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-        }
-
-        .chip:hover { background: #dc2626; }
-
-        button.primary-btn {
-            background: var(--primary);
-            color: #fff;
-            border: none;
-            padding: 11px 18px;
-            border-radius: 6px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            width: 100%;
-        }
-
-        button.primary-btn:hover { background: var(--primary-hover); }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 16px;
+            margin-top: 14px;
             font-size: 0.92rem;
         }
 
@@ -210,6 +157,7 @@
             text-align: right;
             font-weight: 700;
             color: var(--primary);
+            min-width: 90px;
         }
 
         .bar-bg {
@@ -236,9 +184,15 @@
         }
 
         .error-msg {
-            background: #fef2f2;
-            color: #b91c1c;
+            background: var(--warn-bg);
+            color: var(--warn-text);
             border: 1px solid #fecaca;
+        }
+
+        .hint {
+            font-size: 0.82rem;
+            color: var(--muted);
+            margin-top: 6px;
         }
     </style>
 </head>
@@ -246,384 +200,450 @@
 
 <div class="container">
     <header>
-        <h1>Noten-Analyse & Verteilungs-Rechner</h1>
-        <p class="subtitle">Live-Durchschnitt & stochastische Rekonstruktion von Klassenspiegeln</p>
+        <h1>Noten-Analyse &amp; Verteilungs-Rechner</h1>
+        <p class="subtitle">Live-Durchschnitt, Was-wäre-wenn &amp; stochastische Notenverteilung</p>
     </header>
 
-    <!-- FEATURE 1: LIVE NOTENDURCHSCHNITT -->
+    <!-- MODUS 1: LIVE-DURCHSCHNITT & WAS-WÄRE-WENN -->
     <section class="card">
-        <h2>1. Live-Notendurchschnitt</h2>
-        <label for="liveInput">Noten eingeben (getrennt durch Leerzeichen, Komma oder einfach hintereinander wie „12321“):</label>
-        <input type="text" id="liveInput" placeholder="z.B. 1 2 3 2 1 oder 2,3 1,7 3,0 oder 122341" oninput="updateLiveAverage()">
+        <h2>1. Live-Notendurchschnitt &amp; Was-wäre-wenn</h2>
+
+        <div class="grid-2">
+            <div>
+                <label for="baseGradesInput">Bisherige Noten</label>
+                <input type="text" id="baseGradesInput" placeholder="z.B. 1 2 3 2 1 oder 12321" oninput="updateLiveMode()">
+                <div class="hint">Leerzeichen, Komma oder einfach hintereinander (1–6).</div>
+            </div>
+            <div>
+                <label for="whatIfGradesInput">Was-wäre-wenn (geplante Noten)</label>
+                <input type="text" id="whatIfGradesInput" placeholder="z.B. 1 2 oder 11" oninput="updateLiveMode()">
+                <div class="hint">Zeigt live, wie neue Noten den Schnitt verändern.</div>
+            </div>
+        </div>
 
         <div class="live-stats">
             <div class="stat-item">
-                <span>Durchschnitt</span>
-                <strong id="liveAvg">-</strong>
+                <span>Aktueller Schnitt</span>
+                <strong id="currentAvgOut">-</strong>
+            </div>
+            <div class="stat-item">
+                <span>Was-wäre-wenn Schnitt</span>
+                <strong id="whatIfAvgOut">-</strong>
+            </div>
+            <div class="stat-item">
+                <span>Veränderung</span>
+                <strong id="deltaAvgOut">-</strong>
             </div>
             <div class="stat-item">
                 <span>Anzahl Noten</span>
-                <strong id="liveCount">0</strong>
-            </div>
-            <div class="stat-item">
-                <span>Beste / Schlechteste</span>
-                <strong id="liveMinMax">-</strong>
+                <strong id="countOut">0</strong>
             </div>
         </div>
-        <div id="parsedPreview" style="font-size: 0.82rem; color: var(--muted); margin-top: 8px;"></div>
+        <div id="liveParsedInfo" class="hint"></div>
     </section>
 
-    <!-- FEATURE 2: WAHRSCHEINLICHSTE NOTENVERTEILUNG -->
+    <!-- MODUS 2: LIVE NOTENVERTEILUNG -->
     <section class="card">
-        <h2>2. Wahrscheinlichste Notenverteilung (Klassenspiegel)</h2>
+        <h2>2. Live-Notenverteilung (Klassenspiegel)</h2>
 
         <div class="grid-3">
             <div>
-                <label for="totalStudents">Anzahl der Arbeiten</label>
-                <input type="number" id="totalStudents" value="24" min="1" max="60">
+                <label for="classSizeInput">Anzahl der Arbeiten</label>
+                <input type="number" id="classSizeInput" value="24" min="1" max="50" oninput="updateDistributionLive()">
             </div>
             <div>
-                <label for="targetAvg">Klassendurchschnitt</label>
-                <input type="number" id="targetAvg" value="2.8" step="0.01" min="1" max="6">
+                <label for="classAvgInput">Notendurchschnitt</label>
+                <input type="text" id="classAvgInput" value="2,8" oninput="updateDistributionLive()">
+                <div class="hint" id="decimalsHint">Erkannte Nachkommastellen: 1</div>
             </div>
             <div>
-                <label for="roundingMode">Rundung des Schnitts</label>
-                <select id="roundingMode">
-                    <option value="1">1 Nachkommastelle (z.B. 2,8)</option>
-                    <option value="2">2 Nachkommastellen (z.B. 2,83)</option>
-                    <option value="exact">Exakt (keine Rundungstoleranz)</option>
-                </select>
+                <div class="range-header">
+                    <label for="spreadRange" style="margin:0;">Streuung (σ)</label>
+                    <span class="range-val" id="spreadVal">1.05 (Normal)</span>
+                </div>
+                <input type="range" id="spreadRange" min="0.55" max="1.80" step="0.05" value="1.05" oninput="updateDistributionLive()">
+                <div class="hint">Klein = eng am Schnitt, Groß = breit gestreut</div>
             </div>
         </div>
 
-        <label>Bekannte Noten hinzufügen (Stück für Stück anklicken):</label>
-        <div class="known-grades-bar">
-            <button type="button" class="grade-btn" onclick="addKnownGrade(1)">+ Note 1</button>
-            <button type="button" class="grade-btn" onclick="addKnownGrade(2)">+ Note 2</button>
-            <button type="button" class="grade-btn" onclick="addKnownGrade(3)">+ Note 3</button>
-            <button type="button" class="grade-btn" onclick="addKnownGrade(4)">+ Note 4</button>
-            <button type="button" class="grade-btn" onclick="addKnownGrade(5)">+ Note 5</button>
-            <button type="button" class="grade-btn" onclick="addKnownGrade(6)">+ Note 6</button>
-            <button type="button" class="grade-btn" onclick="clearKnownGrades()" style="margin-left:auto; color:#b91c1c;">Zurücksetzen</button>
+        <div>
+            <label for="knownGradesInput">Bereits bekannte Noten (restliche werden geschätzt)</label>
+            <input type="text" id="knownGradesInput" placeholder="z.B. 1 2 5 oder 125 (leer lassen für komplett offene Schätzung)" oninput="updateDistributionLive()">
+            <div class="hint" id="knownStatusHint">0 bekannte Noten → 24 offene Noten werden berechnet.</div>
         </div>
 
-        <div class="chip-list" id="knownChips">
-            <span style="color: var(--muted); font-size: 0.85rem;">Noch keine bekannten Noten ausgewählt (Klick auf ein Tag entfernt es wieder)</span>
-        </div>
-
-        <button type="button" class="primary-btn" onclick="calculateDistribution()">Top 10 Verteilungen berechnen</button>
-
-        <div id="distOutput"></div>
+        <div id="distributionOutput"></div>
     </section>
 </div>
 
 <script>
-    // ==========================================
-    // FEATURE 1: LIVE NOTENDURCHSCHNITT PARSER
-    // ==========================================
-    function updateLiveAverage() {
-        const raw = document.getElementById('liveInput').value.trim();
-        const avgEl = document.getElementById('liveAvg');
-        const countEl = document.getElementById('liveCount');
-        const minMaxEl = document.getElementById('liveMinMax');
-        const previewEl = document.getElementById('parsedPreview');
+    // =========================================================
+    // GEMEINSAMER NOTEN-PARSER (wie in Modus 1 gewünscht)
+    // =========================================================
+    function parseGradesText(rawText) {
+        const raw = (rawText || "").trim();
+        if (!raw) return [];
 
-        if (!raw) {
-            avgEl.textContent = "-";
-            countEl.textContent = "0";
-            minMaxEl.textContent = "-";
-            previewEl.textContent = "";
-            return;
-        }
+        const grades = [];
 
-        let grades = [];
-
-        // Prüfen, ob Trennzeichen (Leerzeichen, Semikolon, Zeilenumbruch) vorhanden sind
         if (/[\s;]+/.test(raw)) {
-            const tokens = raw.split(/[\s;]+/);
-            tokens.forEach(t => {
-                const val = parseFloat(t.replace(',', '.'));
-                if (!isNaN(val) && val >= 0.7 && val <= 6.0) {
+            raw.split(/[\s;]+/).forEach(token => {
+                const cleaned = token.replace(',', '.');
+                const val = parseFloat(cleaned);
+                if (!isNaN(val) && val >= 1.0 && val <= 6.0) {
                     grades.push(val);
                 }
             });
         } else if (raw.includes(',')) {
-            // Komma-getrennte ganze Noten (z.B. 1,2,3,2) vs. eine einzelne Dezimalzahl (z.B. 2,3)
             const parts = raw.split(',');
-            if (parts.length === 2 && parts[0].length === 1 && parts[1].length === 1) {
+            if (parts.length === 2 && parts[0].trim().length === 1 && parts[1].trim().length === 1) {
                 const val = parseFloat(raw.replace(',', '.'));
-                if (!isNaN(val) && val >= 0.7 && val <= 6.0) grades.push(val);
+                if (!isNaN(val) && val >= 1.0 && val <= 6.0) {
+                    grades.push(val);
+                }
             } else {
                 parts.forEach(p => {
-                    const val = parseFloat(p);
-                    if (!isNaN(val) && val >= 1 && val <= 6) grades.push(val);
+                    const val = parseFloat(p.trim());
+                    if (!isNaN(val) && val >= 1 && val <= 6) {
+                        grades.push(val);
+                    }
                 });
             }
         } else {
-            // Reine Ziffernfolge ohne Leerzeichen (z.B. "123214")
-            for (let char of raw) {
-                const val = parseInt(char, 10);
-                if (val >= 1 && val <= 6) {
-                    grades.push(val);
+            for (const ch of raw) {
+                const n = parseInt(ch, 10);
+                if (n >= 1 && n <= 6) {
+                    grades.push(n);
                 }
             }
         }
 
-        if (grades.length === 0) {
-            avgEl.textContent = "-";
+        return grades;
+    }
+
+    function fmtNum(num, decimals = 2) {
+        return num.toFixed(decimals).replace('.', ',');
+    }
+
+    // =========================================================
+    // MODUS 1: LIVE-DURCHSCHNITT & WAS-WÄRE-WENN
+    // =========================================================
+    function updateLiveMode() {
+        const baseGrades = parseGradesText(document.getElementById('baseGradesInput').value);
+        const extraGrades = parseGradesText(document.getElementById('whatIfGradesInput').value);
+
+        const curAvgEl = document.getElementById('currentAvgOut');
+        const simAvgEl = document.getElementById('whatIfAvgOut');
+        const deltaEl = document.getElementById('deltaAvgOut');
+        const countEl = document.getElementById('countOut');
+        const infoEl = document.getElementById('liveParsedInfo');
+
+        const baseSum = baseGrades.reduce((a, b) => a + b, 0);
+        const extraSum = extraGrades.reduce((a, b) => a + b, 0);
+
+        if (baseGrades.length === 0 && extraGrades.length === 0) {
+            curAvgEl.textContent = "-";
+            simAvgEl.textContent = "-";
+            deltaEl.textContent = "-";
             countEl.textContent = "0";
-            minMaxEl.textContent = "-";
-            previewEl.textContent = "Keine gültigen Noten (1–6) erkannt.";
+            infoEl.textContent = "";
             return;
         }
 
-        const sum = grades.reduce((a, b) => a + b, 0);
-        const avg = sum / grades.length;
-        const min = Math.min(...grades);
-        const max = Math.max(...grades);
+        const curAvg = baseGrades.length > 0 ? baseSum / baseGrades.length : null;
+        const allCount = baseGrades.length + extraGrades.length;
+        const simAvg = (baseSum + extraSum) / allCount;
 
-        avgEl.textContent = avg.toFixed(2).replace('.', ',');
-        countEl.textContent = grades.length;
-        minMaxEl.textContent = `${min.toString().replace('.', ',')} / ${max.toString().replace('.', ',')}`;
-        previewEl.textContent = `Erkannte Noten (${grades.length}): ${grades.map(g => g.toString().replace('.', ',')).join(' · ')}`;
-    }
+        curAvgEl.textContent = curAvg !== null ? fmtNum(curAvg) : "-";
+        simAvgEl.textContent = fmtNum(simAvg);
+        countEl.textContent = extraGrades.length > 0
+            ? `${baseGrades.length} + ${extraGrades.length} (${allCount})`
+            : `${baseGrades.length}`;
 
-    // ==========================================
-    // FEATURE 2: STOCHASTISCHER VERTEILUNGS-ALGORITHMUS
-    // ==========================================
-    let knownGrades = [];
-
-    function addKnownGrade(grade) {
-        const total = parseInt(document.getElementById('totalStudents').value, 10) || 60;
-        if (knownGrades.length >= total) {
-            alert("Du kannst nicht mehr bekannte Noten hinzufügen, als Arbeiten geschrieben wurden.");
-            return;
+        if (curAvg !== null && extraGrades.length > 0) {
+            const diff = simAvg - curAvg;
+            const sign = diff > 0 ? "+" : "";
+            deltaEl.textContent = `${sign}${fmtNum(diff)}`;
+            deltaEl.style.color = diff < -0.001 ? "#15803d" : (diff > 0.001 ? "#b91c1c" : "#2563eb");
+        } else {
+            deltaEl.textContent = "-";
+            deltaEl.style.color = "#2563eb";
         }
-        knownGrades.push(grade);
-        knownGrades.sort((a, b) => a - b);
-        renderChips();
+
+        const parts = [];
+        if (baseGrades.length > 0) parts.push(`Bisher: [${baseGrades.map(g => fmtNum(g, 1)).join(', ')}]`);
+        if (extraGrades.length > 0) parts.push(`Geplant: [${extraGrades.map(g => fmtNum(g, 1)).join(', ')}]`);
+        infoEl.textContent = parts.join("  |  ");
     }
 
-    function removeKnownGrade(index) {
-        knownGrades.splice(index, 1);
-        renderChips();
-    }
-
-    function clearKnownGrades() {
-        knownGrades = [];
-        renderChips();
-    }
-
-    function renderChips() {
-        const container = document.getElementById('knownChips');
-        if (knownGrades.length === 0) {
-            container.innerHTML = `<span style="color: var(--muted); font-size: 0.85rem;">Noch keine bekannten Noten ausgewählt (Klick auf ein Tag entfernt es wieder)</span>`;
-            return;
-        }
-        container.innerHTML = knownGrades.map((g, idx) =>
-            `<span class="chip" onclick="removeKnownGrade(${idx})" title="Entfernen">Note ${g} ×</span>`
-        ).join('');
-    }
-
-    // Vorberechnete Log-Fakultäten für exakte Multinomial-Wahrscheinlichkeiten ohne Overflow
+    // =========================================================
+    // MODUS 2: VERBESSERTER VERTEILUNGS-ALGORITHMUS
+    // =========================================================
     const logFact = [0];
-    for (let i = 1; i <= 100; i++) {
+    for (let i = 1; i <= 120; i++) {
         logFact[i] = logFact[i - 1] + Math.log(i);
     }
 
-    function calculateDistribution() {
-        const N = parseInt(document.getElementById('totalStudents').value, 10);
-        const targetAvg = parseFloat(document.getElementById('targetAvg').value);
-        const rounding = document.getElementById('roundingMode').value;
-        const output = document.getElementById('distOutput');
+    function detectDecimalsAndValue(rawAvgStr) {
+        const cleaned = (rawAvgStr || "").trim().replace(',', '.');
+        if (!cleaned || isNaN(Number(cleaned))) return { valid: false };
 
-        if (isNaN(N) || N < 1 || N > 60) {
-            output.innerHTML = `<div class="info-msg error-msg">Bitte eine realistische Anzahl an Arbeiten (1 bis 60) eingeben.</div>`;
+        const val = parseFloat(cleaned);
+        let decimals = 0;
+        if (cleaned.includes('.')) {
+            decimals = cleaned.split('.')[1].length;
+        }
+        return { valid: true, value: val, decimals: Math.min(decimals, 4) };
+    }
+
+    function getSpreadLabel(sigma) {
+        if (sigma < 0.8) return `${fmtNum(sigma)} (Sehr eng)`;
+        if (sigma < 1.0) return `${fmtNum(sigma)} (Kompakt)`;
+        if (sigma <= 1.2) return `${fmtNum(sigma)} (Normal)`;
+        if (sigma <= 1.5) return `${fmtNum(sigma)} (Breit)`;
+        return `${fmtNum(sigma)} (Stark gespalten)`;
+    }
+
+    // Verbesserte Log-Likelihood:
+    // 1. Multinomial-Koeffizient: log(N!) - sum(log(c_g!)) -> berücksichtigt, wie viele Klassen-Konstellationen zum selben Spiegel führen.
+    // 2. Realistischer Glocken-Kern um den exakten Spiegel-Schnitt (effectiveMean), nicht nur den gerundeten Zielwert.
+    // 3. Leichte Dämpfung extremer Rand-Spitzen (viele 1er + viele 6er bei schwachem Mittelbau).
+    function scoreDistribution(counts, N, sigma) {
+        let totalSum = 0;
+        for (let g = 0; g < 6; g++) {
+            totalSum += counts[g] * (g + 1);
+        }
+        const effectiveMean = totalSum / N;
+
+        let logScore = logFact[N];
+        let extremeUShapePenalty = 0;
+
+        for (let g = 0; g < 6; g++) {
+            const c = counts[g];
+            const grade = g + 1;
+            logScore -= logFact[c];
+
+            const z = (grade - effectiveMean) / sigma;
+            // Normierte diskrete Gauß-Gewichtung um effectiveMean
+            const gaussLog = -0.5 * z * z - Math.log(sigma * Math.sqrt(2 * Math.PI));
+            logScore += c * gaussLog;
+
+            // Zusätzliche Strafe für stark polarisierte Ränder (1 und 6)
+            if (c > 0 && (grade === 1 || grade === 6)) {
+                extremeUShapePenalty += c * 0.25;
+            }
+        }
+
+        return {
+            score: logScore - extremeUShapePenalty,
+            exactAvg: effectiveMean
+        };
+    }
+
+    function updateDistributionLive() {
+        const N = parseInt(document.getElementById('classSizeInput').value, 10);
+        const avgInfo = detectDecimalsAndValue(document.getElementById('classAvgInput').value);
+        const sigma = parseFloat(document.getElementById('spreadRange').value);
+        const knownRaw = parseGradesText(document.getElementById('knownGradesInput').value);
+        // Auf ganze Noten 1..6 runden, falls Kommanoten eingegeben wurden
+        const knownGrades = knownRaw.map(g => Math.min(6, Math.max(1, Math.round(g))));
+
+        document.getElementById('spreadVal').textContent = getSpreadLabel(sigma);
+        document.getElementById('decimalsHint').textContent = avgInfo.valid
+            ? `Erkannte Nachkommastellen: ${avgInfo.decimals}`
+            : `Erkannte Nachkommastellen: -`;
+
+        const statusHint = document.getElementById('knownStatusHint');
+        const out = document.getElementById('distributionOutput');
+
+        if (isNaN(N) || N < 1 || N > 50) {
+            out.innerHTML = `<div class="info-msg error-msg">Bitte eine Anzahl zwischen 1 und 50 Arbeiten eingeben.</div>`;
             return;
         }
-        if (isNaN(targetAvg) || targetAvg < 1 || targetAvg > 6) {
-            output.innerHTML = `<div class="info-msg error-msg">Bitte einen gültigen Durchschnitt zwischen 1,0 und 6,0 eingeben.</div>`;
+
+        const openCount = Math.max(0, N - knownGrades.length);
+        statusHint.textContent = `${knownGrades.length} bekannte Note(n) erkannt → ${openCount} offene Note(n) werden geschätzt.`;
+
+        if (!avgInfo.valid || avgInfo.value < 1.0 || avgInfo.value > 6.0) {
+            out.innerHTML = `<div class="info-msg error-msg">Bitte einen gültigen Notendurchschnitt zwischen 1,0 und 6,0 eingeben.</div>`;
             return;
         }
+
         if (knownGrades.length > N) {
-            output.innerHTML = `<div class="info-msg error-msg">Du hast mehr bekannte Noten (${knownGrades.length}) als Arbeiten (${N}) angegeben.</div>`;
+            out.innerHTML = `<div class="info-msg error-msg">Mehr bekannte Noten (${knownGrades.length}) als Arbeiten (${N}) angegeben.</div>`;
             return;
         }
 
-        // Bekannte Noten zählen: minCounts[0] = Anzahl 1er, ..., minCounts[5] = Anzahl 6er
-        const minCounts = [0, 0, 0, 0, 0, 0];
-        let knownSum = 0;
-        knownGrades.forEach(g => {
-            minCounts[g - 1]++;
-            knownSum += g;
-        });
+        const targetAvg = avgInfo.value;
+        const decimals = avgInfo.decimals;
 
-        const remainingStudents = N - knownGrades.length;
-
-        // Erlaubte Gesamtsummen aller Noten basierend auf der Rundung bestimmen
-        let minAllowedSum, maxAllowedSum;
-        if (rounding === "exact") {
-            const exact = Math.round(targetAvg * N);
-            if (Math.abs((exact / N) - targetAvg) > 0.0001) {
-                output.innerHTML = `<div class="info-msg error-msg">Ein exakter Schnitt von ${targetAvg} ist bei ${N} Arbeiten mathematisch nicht möglich (ergibt keine ganze Notensumme). Wähle oben eine Rundung.</div>`;
+        // Zulässige Notensummen für den eingegebenen Schnitt ermitteln
+        let minSum, maxSum;
+        if (decimals === 0) {
+            const exactSum = Math.round(targetAvg * N);
+            if (Math.abs(exactSum / N - targetAvg) > 1e-6) {
+                out.innerHTML = `<div class="info-msg error-msg">Dieser Durchschnitt ist bei ${N} Arbeiten nicht exakt erreichbar.</div>`;
                 return;
             }
-            minAllowedSum = exact;
-            maxAllowedSum = exact;
-        } else if (rounding === "1") {
-            // Kaufmännisches Runden auf 1 Nachkommastelle: [target - 0.05, target + 0.05)
-            minAllowedSum = Math.ceil((targetAvg - 0.05) * N - 1e-9);
-            maxAllowedSum = Math.floor((targetAvg + 0.05 - 1e-9) * N);
+            minSum = exactSum;
+            maxSum = exactSum;
         } else {
-            // Kaufmännisches Runden auf 2 Nachkommastellen: [target - 0.005, target + 0.005)
-            minAllowedSum = Math.ceil((targetAvg - 0.005) * N - 1e-9);
-            maxAllowedSum = Math.floor((targetAvg + 0.005 - 1e-9) * N);
+            const halfTol = 0.5 * Math.pow(10, -decimals);
+            // Prüfen, ob der Wert exakt auf einer Nachkommastelle liegt (z.B. 2,8 -> [2,75; 2,85))
+            minSum = Math.ceil((targetAvg - halfTol) * N - 1e-9);
+            maxSum = Math.floor((targetAvg + halfTol - 1e-9) * N);
         }
 
-        const minRemSum = minAllowedSum - knownSum;
-        const maxRemSum = maxAllowedSum - knownSum;
+        const minCounts = [0, 0, 0, 0, 0, 0];
+        let knownSum = 0;
+        for (const g of knownGrades) {
+            minCounts[g - 1]++;
+            knownSum += g;
+        }
 
-        if (maxRemSum < remainingStudents * 1 || minRemSum > remainingStudents * 6) {
-            output.innerHTML = `<div class="info-msg error-msg">Unmöglich: Mit deinen bereits eingegebenen Noten lässt sich der Durchschnitt ${targetAvg.toString().replace('.', ',')} bei ${N} Arbeiten nicht mehr erreichen.</div>`;
+        const remStudents = N - knownGrades.length;
+        const remMinSum = minSum - knownSum;
+        const remMaxSum = maxSum - knownSum;
+
+        if (remStudents === 0) {
+            if (knownSum < minSum || knownSum > maxSum) {
+                out.innerHTML = `<div class="info-msg error-msg">Alle ${N} Noten sind bekannt – ihr Schnitt (${fmtNum(knownSum / N)}) passt nicht zum Ziel (${fmtNum(targetAvg, Math.max(1, decimals))}).</div>`;
+                return;
+            }
+        } else if (remMaxSum < remStudents * 1 || remMinSum > remStudents * 6) {
+            out.innerHTML = `<div class="info-msg error-msg">Mit den bereits eingegebenen Noten ist der Durchschnitt ${fmtNum(targetAvg, Math.max(1, decimals))} bei ${N} Arbeiten nicht mehr erreichbar.</div>`;
             return;
         }
 
-        // --- REALISTISCHES WAHRSCHEINLICHKEITSMODELL (Diskretisierte Gauß-Verteilung) ---
-        // Standardabweichung in typischen Schulklassen liegt bei ca. 1.05 Notenstufen
-        const sigma = 1.05;
-        const rawWeights = [];
-        for (let g = 1; g <= 6; g++) {
-            // Dichte der Normalverteilung um den Klassenschnitt
-            const z = (g - targetAvg) / sigma;
-            // Leichte Basiswahrscheinlichkeit + Gauß-Glocke
-            const w = Math.exp(-0.5 * z * z) + 0.002;
-            rawWeights.push(w);
-        }
-        const weightSum = rawWeights.reduce((a, b) => a + b, 0);
-        const probs = rawWeights.map(w => w / weightSum);
-        const logProbs = probs.map(p => Math.log(p));
+        // Backtracking mit sauberer Intervall-Prüfung
+        const candidates = [];
+        const remCounts = [0, 0, 0, 0, 0, 0];
 
-        // --- KOMBINATORISCHE SUCHE (BACKTRACKING) ---
-        const validDistributions = [];
-        const currentExtra = [0, 0, 0, 0, 0, 0];
-
-        function search(gradeIdx, remCount, remSumMin, remSumMax) {
-            const gradeVal = gradeIdx + 1;
-
-            if (gradeIdx === 5) {
-                // Letzte Note (6): Anzahl ist durch remCount fest vorgegeben
-                const sum6 = remCount * 6;
-                if (sum6 >= remSumMin && sum6 <= remSumMax) {
-                    currentExtra[5] = remCount;
-                    evaluateCombination();
+        function dfs(idx, leftStudents, sumMin, sumMax) {
+            const grade = idx + 1;
+            if (idx === 5) {
+                const s6 = leftStudents * 6;
+                if (s6 >= sumMin && s6 <= sumMax) {
+                    remCounts[5] = leftStudents;
+                    const total = [
+                        minCounts[0] + remCounts[0],
+                        minCounts[1] + remCounts[1],
+                        minCounts[2] + remCounts[2],
+                        minCounts[3] + remCounts[3],
+                        minCounts[4] + remCounts[4],
+                        minCounts[5] + remCounts[5]
+                    ];
+                    const res = scoreDistribution(total, N, sigma);
+                    candidates.push({
+                        counts: total,
+                        added: [...remCounts],
+                        exactAvg: res.exactAvg,
+                        score: res.score
+                    });
                 }
                 return;
             }
 
-            // Bounds für die Schleife (Pruning für hohe Geschwindigkeit)
-            const maxPossibleForGrade = Math.min(remCount, Math.floor((remSumMax - (remCount * (gradeVal + 1))) / (-1)));
-            // Saubere Grenzen berechnen:
-            // Verbleibende (remCount - c) Schüler brauchen mindestens (remCount - c)*(gradeVal + 1) und maximal (remCount - c)*6
-            const minC = Math.max(0, Math.ceil((remSumMin - remCount * 6) / (gradeVal - 6)));
-            const maxC = Math.min(remCount, Math.floor((remSumMax - remCount * (gradeVal + 1)) / (gradeVal - (gradeVal + 1))));
+            // Für verbleibende (leftStudents - c) Noten im Bereich [grade+1 .. 6]:
+            // Min-Summe bei c Noten der Note `grade`: c*grade + (leftStudents - c)*(grade + 1)
+            // Max-Summe bei c Noten der Note `grade`: c*grade + (leftStudents - c)*6
+            const minRestPerStudent = grade + 1;
+            const maxRestPerStudent = 6;
+
+            // c*grade + (leftStudents - c)*6 >= sumMin  =>  c*(grade - 6) >= sumMin - leftStudents*6
+            const minC = grade < 6
+                ? Math.max(0, Math.ceil((sumMin - leftStudents * 6) / (grade - 6) - 1e-9))
+                : leftStudents;
+
+            // c*grade + (leftStudents - c)*(grade + 1) <= sumMax  =>  -c <= sumMax - leftStudents*(grade + 1)
+            const maxC = Math.min(
+                leftStudents,
+                sumMax - leftStudents * minRestPerStudent
+            );
 
             for (let c = minC; c <= maxC; c++) {
-                currentExtra[gradeIdx] = c;
-                search(
-                    gradeIdx + 1,
-                    remCount - c,
-                    remSumMin - c * gradeVal,
-                    remSumMax - c * gradeVal
+                remCounts[idx] = c;
+                dfs(
+                    idx + 1,
+                    leftStudents - c,
+                    sumMin - c * grade,
+                    sumMax - c * grade
                 );
             }
         }
 
-        function evaluateCombination() {
-            const totalCounts = [];
-            let totalSum = 0;
-            // Log-Multinomialwahrscheinlichkeit berechnen: log(N!) - sum(log(c_i!)) + sum(c_i * log(p_i))
-            let logLikelihood = logFact[N];
+        dfs(0, remStudents, remMinSum, remMaxSum);
 
-            for (let i = 0; i < 6; i++) {
-                const count = minCounts[i] + currentExtra[i];
-                totalCounts.push(count);
-                totalSum += count * (i + 1);
-                logLikelihood -= logFact[count];
-                logLikelihood += count * logProbs[i];
-            }
-
-            validDistributions.push({
-                counts: totalCounts,
-                avg: totalSum / N,
-                logL: logLikelihood
-            });
-        }
-
-        search(0, remainingStudents, minRemSum, maxRemSum);
-
-        if (validDistributions.length === 0) {
-            output.innerHTML = `<div class="info-msg error-msg">Keine mathematisch gültige Verteilung gefunden. Prüfe Durchschnitt und bekannte Noten.</div>`;
+        if (candidates.length === 0) {
+            out.innerHTML = `<div class="info-msg error-msg">Keine gültige Notenverteilung für diese Kombination gefunden.</div>`;
             return;
         }
 
-        // Nach Log-Likelihood absteigend sortieren (wahrscheinlichste zuerst)
-        validDistributions.sort((a, b) => b.logL - a.logL);
+        candidates.sort((a, b) => b.score - a.score);
 
-        // Log-Sum-Exp Trick zur exakten Normierung der Wahrscheinlichkeiten aller gültigen Verteilungen auf 100%
-        const maxLogL = validDistributions[0].logL;
+        // Log-Sum-Exp Normierung über alle gefundenen Kandidaten
+        const maxScore = candidates[0].score;
         let sumExp = 0;
-        for (let d of validDistributions) {
-            sumExp += Math.exp(d.logL - maxLogL);
+        for (const item of candidates) {
+            sumExp += Math.exp(item.score - maxScore);
         }
 
-        const top10 = validDistributions.slice(0, 10);
+        const top10 = candidates.slice(0, 10);
 
         let html = `
             <div class="info-msg">
-                Es wurden <strong>${validDistributions.length.toLocaleString('de-DE')}</strong> mathematisch mögliche Verteilungen gefunden.
-                Hier sind die <strong>Top ${top10.length}</strong> wahrscheinlichsten (basierend auf einer realistischen Gauß-Verteilung um Ø ${targetAvg.toString().replace('.', ',')}):
+                <strong>${candidates.length.toLocaleString('de-DE')}</strong> passende Verteilungen gefunden
+                (Ziel: Ø ${fmtNum(targetAvg, Math.max(1, decimals))}, ${N} Arbeiten, ${remStudents} offen).
+                In Klammern siehst du die zusätzlich geschätzten Noten:
             </div>
             <table>
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>1</th>
-                        <th>2</th>
-                        <th>3</th>
-                        <th>4</th>
-                        <th>5</th>
-                        <th>6</th>
-                        <th>Exakter Ø</th>
+                        <th>Note 1</th>
+                        <th>Note 2</th>
+                        <th>Note 3</th>
+                        <th>Note 4</th>
+                        <th>Note 5</th>
+                        <th>Note 6</th>
+                        <th>Schnitt</th>
                         <th style="text-align:right;">Wahrsch.</th>
                     </tr>
                 </thead>
                 <tbody>
         `;
 
-        top10.forEach((d, idx) => {
-            const probPercent = (Math.exp(d.logL - maxLogL) / sumExp) * 100;
+        top10.forEach((item, i) => {
+            const prob = (Math.exp(item.score - maxScore) / sumExp) * 100;
+            const cells = item.counts.map((tot, gIdx) => {
+                const add = item.added[gIdx];
+                const extraStr = (remStudents > 0 && add > 0)
+                    ? ` <span style="color:#2563eb; font-size:0.8rem;">(+${add})</span>`
+                    : "";
+                return `<td><strong>${tot}</strong>${extraStr}</td>`;
+            }).join('');
+
             html += `
                 <tr>
-                    <td style="color:var(--muted);">${idx + 1}.</td>
-                    <td><strong>${d.counts[0]}</strong></td>
-                    <td><strong>${d.counts[1]}</strong></td>
-                    <td><strong>${d.counts[2]}</strong></td>
-                    <td><strong>${d.counts[3]}</strong></td>
-                    <td><strong>${d.counts[4]}</strong></td>
-                    <td><strong>${d.counts[5]}</strong></td>
-                    <td style="color:var(--muted);">${d.avg.toFixed(2).replace('.', ',')}</td>
+                    <td style="color:var(--muted);">${i + 1}.</td>
+                    ${cells}
+                    <td style="color:var(--muted);">${fmtNum(item.exactAvg)}</td>
                     <td class="prob-cell">
-                        ${probPercent.toFixed(1).replace('.', ',')} %
-                        <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(100, probPercent * 2.5)}%"></div></div>
+                        ${fmtNum(prob, 1)} %
+                        <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(100, prob * 2.2)}%"></div></div>
                     </td>
                 </tr>
             `;
         });
 
         html += `</tbody></table>`;
-        output.innerHTML = html;
+        out.innerHTML = html;
     }
+
+    // Direkt beim Laden initialisieren
+    updateLiveMode();
+    updateDistributionLive();
 </script>
 
 </body>
-</html>index.ht
+</html>
