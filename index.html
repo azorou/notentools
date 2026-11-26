@@ -4,38 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#2563eb">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>NotenApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
 <div class="app-shell">
-    <!-- TOP APP BAR -->
     <header class="topbar">
         <div>
             <h1 class="app-title">NotenApp</h1>
-            <p class="app-sub" id="headerSubtitle">Fächer, Schnitte &amp; Analyse</p>
+            <p class="app-sub">Fächer, Schnitte &amp; Analyse</p>
         </div>
         <div class="topbar-actions">
-            <button type="button" class="icon-btn" id="installBtn" style="display:none;" title="App installieren">Installieren</button>
-            <button type="button" class="icon-btn" onclick="cycleTheme()" id="themeBtn" title="Design wechseln">🌓 Auto</button>
+            <button type="button" class="chip-btn" id="installBtn" style="display:none;">App laden</button>
+            <button type="button" class="chip-btn" onclick="cycleTheme()" id="themeBtn">Auto</button>
         </div>
     </header>
 
-    <!-- MAIN SCROLL AREA -->
     <main class="main-content">
-
-        <!-- TAB 1: FÄCHER & GESAMTSCHNITT (NOTAN-STIL) -->
+        <!-- TAB 1: FÄCHER & GESAMTSCHNITT -->
         <section id="view-subjects" class="tab-view active">
-            <!-- GESAMTSCHNITT-BANNER -->
             <div class="hero-summary">
                 <div class="hero-metric">
                     <span class="hero-label">Gesamtschnitt</span>
                     <strong class="hero-value" id="overallAvgAll">–</strong>
-                    <small class="hero-meta" id="overallMetaAll">Noch keine Noten</small>
+                    <small class="hero-meta" id="overallMetaAll">Keine Noten</small>
                 </div>
                 <div class="hero-divider"></div>
                 <div class="hero-metric">
@@ -45,27 +42,33 @@
                 </div>
             </div>
 
-            <!-- NEUES FACH ANLEGEN -->
             <details class="card-panel" open>
-                <summary><span>+ Neues Fach anlegen</span></summary>
+                <summary><span>Vorlagen</span></summary>
+                <div class="panel-body">
+                    <div class="preset-grid" id="presetSubjectsGrid"></div>
+                </div>
+            </details>
+
+            <details class="card-panel">
+                <summary><span>Eigenes Fach anlegen</span></summary>
                 <div class="panel-body">
                     <div class="form-grid-4">
                         <div>
-                            <label for="newSubName">Fachname</label>
-                            <input type="text" id="newSubName" placeholder="z.B. Mathematik">
+                            <label for="newSubName">Fach</label>
+                            <input type="text" id="newSubName" placeholder="z.B. Physik">
                         </div>
                         <div>
-                            <label for="newSubType">Fachart</label>
+                            <label for="newSubType">Art</label>
                             <select id="newSubType" onchange="toggleNewSubDefaults()">
-                                <option value="haupt">Hauptfach (SA + kleine LN)</option>
-                                <option value="neben">Nebenfach (große/kleine LN)</option>
+                                <option value="haupt">Hauptfach</option>
+                                <option value="neben">Nebenfach</option>
                             </select>
                         </div>
                         <div>
-                            <label for="newSubRatio">SA-Verhältnis (Hauptfach)</label>
+                            <label for="newSubRatio">Verhältnis</label>
                             <select id="newSubRatio">
-                                <option value="2:1">Schulaufgaben 2 : 1 kleine LN</option>
-                                <option value="1:1">Schulaufgaben 1 : 1 kleine LN</option>
+                                <option value="2:1">2:1</option>
+                                <option value="1:1">1:1</option>
                             </select>
                         </div>
                         <div class="check-col">
@@ -75,63 +78,62 @@
                             </label>
                         </div>
                     </div>
-                    <button type="button" class="btn btn-primary" onclick="addSubject()">Fach hinzufügen</button>
+                    <button type="button" class="btn btn-primary" onclick="addSubject()">Fach anlegen</button>
                 </div>
             </details>
 
-            <!-- FÄCHERLISTE -->
             <div id="subjectsContainer"></div>
         </section>
 
-        <!-- TAB 2: VERTEILUNGS-RECHNER -->
+        <!-- TAB 2: VERTEILUNG -->
         <section id="view-distribution" class="tab-view">
             <details class="card-panel" open>
-                <summary><span>Live-Notenverteilung (Klassenspiegel)</span></summary>
+                <summary><span>Notenverteilung</span></summary>
                 <div class="panel-body">
                     <div class="form-grid-4">
                         <div>
-                            <label for="distN">Anzahl Arbeiten</label>
-                            <input type="number" id="distN" min="1" max="60" step="1" placeholder="z.B. 25" oninput="scheduleDist()">
+                            <label for="distN">Arbeiten (N)</label>
+                            <input type="number" id="distN" min="1" max="60" step="1" placeholder="25" oninput="scheduleDist()">
                         </div>
                         <div>
                             <label for="distAvg">Schnitt (Ø)</label>
-                            <input type="text" id="distAvg" placeholder="z.B. 2,68" oninput="scheduleDist()">
+                            <input type="text" id="distAvg" placeholder="2,68" oninput="scheduleDist()">
                         </div>
                         <div>
                             <label for="distSigma">Streuung: <strong id="distSigmaVal">1,00</strong></label>
                             <input type="range" id="distSigma" min="0.55" max="1.75" step="0.05" value="1.00" oninput="scheduleDist()">
                         </div>
                         <div>
-                            <label for="distKnown">Bekannte Einzelnoten</label>
-                            <input type="text" id="distKnown" placeholder="z.B. 312243" oninput="scheduleDist()">
+                            <label for="distKnown">Bekannte Noten</label>
+                            <input type="text" id="distKnown" placeholder="312243" oninput="scheduleDist()">
                         </div>
                     </div>
 
                     <details class="sub-panel">
-                        <summary><span>Filter (leicht/schwer, Streuung, bekannte Mengen &amp; Kategorien)</span></summary>
+                        <summary><span>Filter &amp; Bedingungen</span></summary>
                         <div class="sub-panel-body">
                             <div class="form-grid-2" style="margin-bottom:8px;">
                                 <div>
-                                    <label for="distSkewFilter">Tendenz der Prüfung</label>
+                                    <label for="distSkewFilter">Tendenz</label>
                                     <select id="distSkewFilter" onchange="scheduleDist()">
-                                        <option value="any">Alle Varianten</option>
+                                        <option value="any">Alle</option>
                                         <option value="light">Eher leicht (1–3)</option>
                                         <option value="balanced">Ausgeglichen</option>
                                         <option value="heavy">Eher schwer (4–6)</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label for="distSpreadFilter">Streuung der Treffer</label>
+                                    <label for="distSpreadFilter">Streuung</label>
                                     <select id="distSpreadFilter" onchange="scheduleDist()">
-                                        <option value="any">Alle Streuungen</option>
-                                        <option value="tight">Eng beieinander</option>
+                                        <option value="any">Alle</option>
+                                        <option value="tight">Eng</option>
                                         <option value="medium">Mittel</option>
-                                        <option value="wide">Stark gestreut</option>
+                                        <option value="wide">Weit</option>
                                     </select>
                                 </div>
                             </div>
                             <div class="toolbar">
-                                <button type="button" class="btn btn-sm" onclick="applyDistPreset('all')">Alle (1–6) kamen vor</button>
+                                <button type="button" class="btn btn-sm" onclick="applyDistPreset('all')">Alle 1–6</button>
                                 <button type="button" class="btn btn-sm" onclick="applyDistPreset('no6')">Keine 6</button>
                                 <button type="button" class="btn btn-sm" onclick="applyDistPreset('no56')">Keine 5 &amp; 6</button>
                                 <button type="button" class="btn btn-sm btn-danger" onclick="applyDistPreset('reset')">Reset</button>
@@ -146,22 +148,22 @@
             </details>
         </section>
 
-        <!-- TAB 3: PUNKTE-SCHLÜSSEL & VERGLEICH -->
+        <!-- TAB 3: SCHLÜSSEL & VERGLEICH -->
         <section id="view-tools" class="tab-view">
             <details class="card-panel" open>
-                <summary><span>Punkteverteilung &amp; Notenschlüssel (0,5er-Schritte)</span></summary>
+                <summary><span>Punkteschlüssel</span></summary>
                 <div class="panel-body">
                     <div class="form-grid-3">
                         <div>
                             <label for="keyMaxPts">Maximalpunkte</label>
-                            <input type="number" id="keyMaxPts" min="0.5" step="0.5" placeholder="z.B. 60" oninput="syncKeyFromMax()">
+                            <input type="number" id="keyMaxPts" min="0.5" step="0.5" placeholder="60" oninput="syncKeyFromMax()">
                         </div>
                         <div>
                             <label for="keyGotPts">Eigene Punkte</label>
-                            <input type="number" id="keyGotPts" min="0" step="0.5" placeholder="z.B. 46" oninput="renderKeyTable()">
+                            <input type="number" id="keyGotPts" min="0" step="0.5" placeholder="46" oninput="renderKeyTable()">
                         </div>
                         <div class="check-col">
-                            <button type="button" class="btn" onclick="resetKeyTable()">Standard-Grenzen</button>
+                            <button type="button" class="btn" onclick="resetKeyTable()">Standard</button>
                         </div>
                     </div>
                     <div id="keySummary"></div>
@@ -182,16 +184,16 @@
             </details>
 
             <details class="card-panel">
-                <summary><span>Notenreihen &amp; Prüfungen vergleichen</span></summary>
+                <summary><span>Vergleich</span></summary>
                 <div class="panel-body">
                     <div class="form-grid-2">
                         <div>
-                            <label for="cmpA">Reihe A (Noten 1–6)</label>
-                            <input type="text" id="cmpA" placeholder="z.B. 122334" oninput="updateComparison()">
+                            <label for="cmpA">Reihe A</label>
+                            <input type="text" id="cmpA" placeholder="122334" oninput="updateComparison()">
                         </div>
                         <div>
-                            <label for="cmpB">Reihe B (Noten 1–6)</label>
-                            <input type="text" id="cmpB" placeholder="z.B. 223344" oninput="updateComparison()">
+                            <label for="cmpB">Reihe B</label>
+                            <input type="text" id="cmpB" placeholder="223344" oninput="updateComparison()">
                         </div>
                     </div>
                     <div id="cmpOutput"></div>
@@ -199,40 +201,32 @@
             </details>
         </section>
 
-        <!-- TAB 4: KOMPLETTE PRÜFUNGEN SPEICHERN & VERLAUF -->
+        <!-- TAB 4: VERLAUF -->
         <section id="view-archive" class="tab-view">
             <details class="card-panel" open>
-                <summary><span>Komplette Prüfung speichern</span></summary>
+                <summary><span>Prüfung komplett speichern</span></summary>
                 <div class="panel-body">
                     <div class="save-row">
-                        <input type="text" id="archiveName" placeholder="Name der Prüfung / des Stands (z.B. Halbjahr 1)">
+                        <input type="text" id="archiveName" placeholder="Name (z.B. Halbjahr 1)">
                         <button type="button" class="btn btn-primary" onclick="saveFullSnapshot()">Speichern</button>
                     </div>
-                    <p class="hint">Speichert Fächer, Noten, Gewichtungen, Verteilungs-Werte und Punkte-Schlüssel gemeinsam im Browser.</p>
                 </div>
             </details>
-
             <div id="archiveList"></div>
         </section>
-
     </main>
 
-    <!-- BOTTOM APP NAVIGATION -->
     <nav class="bottom-nav">
         <button type="button" class="nav-btn active" data-tab="subjects" onclick="switchTab('subjects')">
-            <span class="nav-icon">📚</span>
             <span>Fächer</span>
         </button>
         <button type="button" class="nav-btn" data-tab="distribution" onclick="switchTab('distribution')">
-            <span class="nav-icon">📊</span>
             <span>Verteilung</span>
         </button>
         <button type="button" class="nav-btn" data-tab="tools" onclick="switchTab('tools')">
-            <span class="nav-icon">🎯</span>
             <span>Schlüssel</span>
         </button>
         <button type="button" class="nav-btn" data-tab="archive" onclick="switchTab('archive')">
-            <span class="nav-icon">💾</span>
             <span>Verlauf</span>
         </button>
     </nav>
