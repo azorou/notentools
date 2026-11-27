@@ -12,7 +12,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+    <link rel="icon" type="image/png" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-title" content="NotenApp">
 </head>
 <body>
 
@@ -24,17 +27,18 @@
             <p class="app-sub">Konto mit Benutzername &amp; Passwort</p>
         </div>
         <form id="authForm" onsubmit="handleAuthSubmit(event)">
-            <div class="auth-field">
-                <label for="authUsername">Benutzername</label>
-                <input type="text" id="authUsername" autocomplete="username" required placeholder="dein_name">
-            </div>
-            <div class="auth-field">
-                <label for="authPassword">Passwort</label>
-                <input type="password" id="authPassword" autocomplete="current-password" required placeholder="Passwort">
-            </div>
-            <button type="submit" class="btn btn-primary auth-submit" id="authSubmitBtn">Weiter</button>
-            <div id="authStatus" class="hint" style="margin-top:8px;"></div>
-        </form>
+    <div class="auth-field">
+        <label for="authUsername">Benutzername</label>
+        <input type="text" id="authUsername" autocomplete="username" autocapitalize="none" required placeholder="dein_name">
+    </div>
+    <div class="auth-field">
+        <label for="authPassword">Passwort</label>
+        <input type="password" id="authPassword" autocomplete="current-password" required minlength="6" placeholder="Mind. 6 Zeichen">
+    </div>
+    <button type="submit" class="btn btn-primary auth-submit" id="authSubmitBtn">Anmelden</button>
+    <button type="button" class="btn auth-submit" id="authModeBtn" onclick="toggleAuthMode()" style="margin-top:8px;">Neues Konto erstellen</button>
+    <div id="authStatus" class="hint" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
+</form>
     </div>
 </div>
 
@@ -47,7 +51,7 @@
         </div>
         <div class="topbar-actions">
             <button type="button" class="chip-btn" id="installBtn" style="display:none;">Installieren</button>
-            <button type="button" class="chip-btn" onclick="cycleTheme()" id="themeBtn">Auto</button>
+            <button type="button" class="chip-btn" onclick="cycleTheme()" id="themeBtn" aria-label="Farbschema wechseln">Auto</button>
             <button type="button" class="chip-btn" onclick="handleLogout()">Abmelden</button>
         </div>
     </header>
@@ -120,11 +124,11 @@
                     <div class="form-grid-4">
                         <div>
                             <label for="distN">Arbeiten (N)</label>
-                            <input type="number" id="distN" min="1" max="60" step="1" placeholder="25" oninput="scheduleDist()">
+                            <input type="number" id="distN" min="1" max="60" step="1" placeholder="25" oninput="scheduleDist()" inputmode="numeric">
                         </div>
                         <div>
                             <label for="distAvg">Schnitt (Ø)</label>
-                            <input type="text" id="distAvg" placeholder="2,68" oninput="scheduleDist()">
+                            <input type="text" id="distAvg" placeholder="2,68" oninput="scheduleDist()" inputmode="decimal">
                         </div>
                         <div>
                             <label for="distSigma">Streuung: <strong id="distSigmaVal">1,00</strong></label>
@@ -132,7 +136,7 @@
                         </div>
                         <div>
                             <label for="distKnown">Bekannte Noten</label>
-                            <input type="text" id="distKnown" placeholder="312243" oninput="scheduleDist()">
+                            <input type="text" id="distKnown" placeholder="312243" oninput="scheduleDist()" inputmode="numeric">
                         </div>
                     </div>
 
@@ -170,7 +174,7 @@
                         </div>
                     </details>
 
-                    <div id="distOutput"></div>
+                    <div id="distOutput" aria-live="polite"></div>
                 </div>
             </details>
         </section>
@@ -193,7 +197,7 @@
                             <button type="button" class="btn" onclick="resetKeyTable()">Standard</button>
                         </div>
                     </div>
-                    <div id="keySummary"></div>
+                    <div id="keySummary" aria-live="polite"></div>
                     <div class="table-wrap">
                         <table>
                             <thead>
@@ -216,14 +220,14 @@
                     <div class="form-grid-2">
                         <div>
                             <label for="cmpA">Reihe A</label>
-                            <input type="text" id="cmpA" placeholder="122334" oninput="updateComparison()">
+                            <input type="text" id="cmpA" placeholder="122334" oninput="updateComparison()" inputmode="numeric">
                         </div>
                         <div>
                             <label for="cmpB">Reihe B</label>
-                            <input type="text" id="cmpB" placeholder="223344" oninput="updateComparison()">
+                            <input type="text" id="cmpB" placeholder="223344" oninput="updateComparison()" inputmode="numeric">
                         </div>
                     </div>
-                    <div id="cmpOutput"></div>
+                    <div id="cmpOutput" aria-live="polite"></div>
                 </div>
             </details>
         </section>
@@ -243,7 +247,7 @@
         </section>
     </main>
 
-    <nav class="bottom-nav">
+    <nav class="bottom-nav" aria-label="Hauptnavigation">
         <button type="button" class="nav-btn active" data-tab="subjects" onclick="switchTab('subjects')">
             <span>Fächer</span>
         </button>

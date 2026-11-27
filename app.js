@@ -10,12 +10,23 @@ const sbClient = (typeof supabase !== "undefined" && SUPABASE_URL.startsWith("ht
     })
     : null;
 
-const STORAGE_KEYS = {
-    subjects: "notenapp_subjects_v3",
-    archive: "notenapp_archive_v3",
-    theme: "notenapp_theme_v3",
-    localUser: "notenapp_local_user_v3"
-};
+const STORAGE_KEYS = { theme: "notenapp_theme_v3" };
+const SCOPED = { subjects: "notenapp_subjects_v3", archive: "notenapp_archive_v3", meta: "notenapp_meta_v3" };
+let storageScope = "anon";
+const skey = (k) => `${SCOPED[k]}:${storageScope}`;
+
+function setStorageScope(userId) {
+    storageScope = userId || "anon";
+    // Einmalige Übernahme alter, ungetrennter Daten durch den ersten Login
+    for (const k of Object.keys(SCOPED)) {
+        const old = localStorage.getItem(SCOPED[k]);
+        if (old !== null && localStorage.getItem(skey(k)) === null) localStorage.setItem(skey(k), old);
+        localStorage.removeItem(SCOPED[k]);
+    }
+}
+
+let uidSeq = 0;
+function uid() { return Date.now() * 1000 + (uidSeq++ % 1000); }
 
 const SUBJECT_PRESETS = [
     { name: "Religion", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "R" },
@@ -65,138 +76,144 @@ function showAuth() {
     document.getElementById("authScreen").style.display = "flex";
 }
 
+let authMode = "login";
+let syncTimer = null;
+
+function setAuthStatus(t) { document.getElementById("authStatus").textContent = t; }
+
+function toggleAuthMode() {
+    authMode = authMode === "login" ? "register" : "login";
+    const reg = authMode === "register";
+    document.getElementById("authSubmitBtn").textContent = reg ? "Konto erstellen" : "Anmelden";
+    document.getElementById("authModeBtn").textContent = reg ? "Ich habe schon ein Konto" : "Neues Konto erstellen";
+    document.getElementById("authPassword").autocomplete = reg ? "new-password" : "current-password";
+    setAuthStatus("");
+}
+
+function authErrorText(err) {
+    const m = (err.message || "").toLowerCase();
+    if (m.includes("invalid login")) return "Benutzername oder Passwort falsch.";
+    if (m.includes("already registered")) return "Dieser Benutzername ist schon vergeben.";
+    if (m.includes("at least")) return "Passwort zu kurz (mind. 6 Zeichen).";
+    if (m.includes("rate limit")) return "Zu viele Versuche. Bitte kurz warten.";
+    return "Fehlgeschlagen: " + err.message;
+}
+
 async function initAuthAndData() {
-    if (sbClient) {
-        const { data } = await sbClient.auth.getSession();
-        if (data && data.session && data.session.user) {
-            currentUser = data.session.user;
-            showApp(extractUsernameFromEmail(currentUser.email));
-            await pullCloudState();
-            return;
-        }
-        sbClient.auth.onAuthStateChange(async (_event, session) => {
-            if (session && session.user) {
-                currentUser = session.user;
-                showApp(extractUsernameFromEmail(currentUser.email));
-                await pullCloudState();
-            } else {
-                currentUser = null;
-                showAuth();
-            }
-        });
+    if (!sbClient) {
         showAuth();
+        setAuthStatus("Server nicht erreichbar. Bitte Verbindung prüfen und neu laden.");
         return;
     }
+    // Einmalig registrieren; feuert auch INITIAL_SESSION. Kein await im Callback (Deadlock-Gefahr).
+    sbClient.auth.onAuthStateChange((_event, session) => {
+        setTimeout(() => handleSession(session), 0);
+    });
+}
 
-    const localUser = localStorage.getItem(STORAGE_KEYS.localUser);
-    if (localUser) {
-        currentUser = { username: localUser };
-        showApp(localUser);
+async function handleSession(session) {
+    if (session && session.user) {
+        if (currentUser && currentUser.id === session.user.id) return; // Token-Refresh
+        currentUser = session.user;
+        setStorageScope(currentUser.id);
+        showApp(extractUsernameFromEmail(currentUser.email));
+        await pullCloudState();
     } else {
+        currentUser = null;
+        setStorageScope(null);
+        subjects = [];
+        renderSubjects();
+        renderArchive();
         showAuth();
     }
 }
 
 async function handleAuthSubmit(event) {
     event.preventDefault();
-    const userInp = document.getElementById("authUsername");
-    const passInp = document.getElementById("authPassword");
-    const statusEl = document.getElementById("authStatus");
+    if (!sbClient) return setAuthStatus("Server nicht erreichbar.");
+    const username = document.getElementById("authUsername").value.trim();
+    const password = document.getElementById("authPassword").value;
     const btn = document.getElementById("authSubmitBtn");
-
-    const username = userInp.value.trim();
-    const password = passInp.value;
-    if (!username || !password) return;
+    if (!username || password.length < 6) return setAuthStatus("Benutzername und mind. 6 Zeichen Passwort nötig.");
 
     btn.disabled = true;
-    statusEl.textContent = "";
-
+    setAuthStatus("Bitte warten …");
     const email = toTechnicalEmail(username);
-
-    if (sbClient) {
-        const signInRes = await sbClient.auth.signInWithPassword({ email, password });
-        if (!signInRes.error && signInRes.data.user) {
-            currentUser = signInRes.data.user;
-            showApp(username);
-            await pullCloudState();
-            btn.disabled = false;
-            return;
-        }
-
-        const signUpRes = await sbClient.auth.signUp({ email, password });
-        if (!signUpRes.error && signUpRes.data.user) {
-            currentUser = signUpRes.data.user;
-            showApp(username);
-            await pushCloudState();
-            btn.disabled = false;
-            return;
-        }
-
-        statusEl.textContent = "Anmeldung fehlgeschlagen. Prüfe Benutzername und Passwort.";
+    try {
+        const res = authMode === "register"
+            ? await sbClient.auth.signUp({ email, password })
+            : await sbClient.auth.signInWithPassword({ email, password });
+        if (res.error) setAuthStatus(authErrorText(res.error));
+        else if (!res.data.session) setAuthStatus("Konto angelegt, aber Supabase verlangt noch eine E-Mail-Bestätigung (dort deaktivieren).");
+        else { setAuthStatus(""); document.getElementById("authPassword").value = ""; }
+    } catch (_) {
+        setAuthStatus("Netzwerkfehler. Bitte erneut versuchen.");
+    } finally {
         btn.disabled = false;
-        return;
     }
-
-    localStorage.setItem(STORAGE_KEYS.localUser, username);
-    currentUser = { username };
-    showApp(username);
-    btn.disabled = false;
 }
 
 async function handleLogout() {
-    if (sbClient) {
-        await sbClient.auth.signOut();
-    } else {
-        localStorage.removeItem(STORAGE_KEYS.localUser);
-    }
-    currentUser = null;
-    showAuth();
+    await flushCloudState();
+    if (sbClient) await sbClient.auth.signOut();
 }
 
-async function pushCloudState() {
-    localStorage.setItem(STORAGE_KEYS.subjects, JSON.stringify(subjects));
+// Lokal sofort speichern, Cloud entprellt
+function pushCloudState() {
+    localStorage.setItem(skey("subjects"), JSON.stringify(subjects));
+    localStorage.setItem(skey("meta"), JSON.stringify({ modified: Date.now() }));
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(flushCloudState, 800);
+}
+
+async function flushCloudState() {
+    clearTimeout(syncTimer);
     if (!sbClient || !currentUser || !currentUser.id) return;
+    try {
+        const { error } = await sbClient.from("user_noten_daten").upsert({
+            user_id: currentUser.id,
+            subjects,
+            archive: getArchive(),
+            updated_at: new Date().toISOString()
+        }, { onConflict: "user_id" });
+        if (error) console.warn("Cloud-Sync fehlgeschlagen:", error.message);
+    } catch (e) { console.warn("Cloud-Sync offline:", e); }
+}
 
-    const payload = {
-        user_id: currentUser.id,
-        subjects,
-        archive: getArchive(),
-        updated_at: new Date().toISOString()
-    };
-
-    await sbClient
-        .from("user_noten_daten")
-        .upsert(payload, { onConflict: "user_id" })
-        .catch(() => {});
+function getLocalModified() {
+    try { return JSON.parse(localStorage.getItem(skey("meta")) || "{}").modified || 0; }
+    catch { return 0; }
 }
 
 async function pullCloudState() {
     loadSubjects();
     renderSubjects();
     renderArchive();
-
     if (!sbClient || !currentUser || !currentUser.id) return;
-
     try {
-        const { data } = await sbClient
-            .from("user_noten_daten")
-            .select("subjects, archive")
+        const { data, error } = await sbClient.from("user_noten_daten")
+            .select("subjects, archive, updated_at")
             .eq("user_id", currentUser.id)
             .maybeSingle();
+        if (error) throw error;
 
-        if (data) {
-            if (Array.isArray(data.subjects)) {
-                subjects = data.subjects;
-                localStorage.setItem(STORAGE_KEYS.subjects, JSON.stringify(subjects));
-                renderSubjects();
-            }
-            if (Array.isArray(data.archive)) {
-                localStorage.setItem(STORAGE_KEYS.archive, JSON.stringify(data.archive));
-                renderArchive();
-            }
+        if (!data) { await flushCloudState(); return; }                       // neues Konto
+        if (getLocalModified() > (Date.parse(data.updated_at) || 0)) {        // offline bearbeitet
+            await flushCloudState();
+            return;
         }
-    } catch (_) {}
+        if (Array.isArray(data.subjects)) {
+            subjects = data.subjects;
+            localStorage.setItem(skey("subjects"), JSON.stringify(subjects));
+        }
+        if (Array.isArray(data.archive)) localStorage.setItem(skey("archive"), JSON.stringify(data.archive));
+        renderSubjects();
+        renderArchive();
+    } catch (e) { console.warn("Cloud-Laden fehlgeschlagen:", e.message || e); }
 }
+
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushCloudState(); });
+window.addEventListener("online", flushCloudState);
 
 // --- THEME ---
 function initTheme() {
@@ -244,9 +261,12 @@ document.addEventListener("DOMContentLoaded", () => {
 // --- NAVIGATION ---
 function switchTab(tabName) {
     document.querySelectorAll(".tab-view").forEach(sec => sec.classList.remove("active"));
-    document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".nav-btn").forEach(b => { b.classList.remove("active"); b.removeAttribute("aria-current"); });
     document.getElementById("view-" + tabName)?.classList.add("active");
-    document.querySelector(`.nav-btn[data-tab="${tabName}"]`)?.classList.add("active");
+    const btn = document.querySelector(`.nav-btn[data-tab="${tabName}"]`);
+    btn?.classList.add("active");
+    btn?.setAttribute("aria-current", "page");
+    window.scrollTo(0, 0);
 }
 
 // --- HILFSFUNKTIONEN ---
@@ -275,7 +295,8 @@ function parseHalf(raw) {
 }
 
 function parseGradeToken(rawToken) {
-    const m = String(rawToken ?? "").trim().match(/^([1-6])([+-])?$/);
+    const t = String(rawToken ?? "").trim().replace(/[−–—]/g, "-"); // iOS-Sonderstriche
+    const m = t.match(/^([1-6])([+-])?$/);
     if (!m) return null;
     return { base: parseInt(m[1], 10), sign: m[2] || "", label: `${m[1]}${m[2] || ""}` };
 }
@@ -293,7 +314,7 @@ function saveSubjects() {
 }
 
 function loadSubjects() {
-    try { subjects = JSON.parse(localStorage.getItem(STORAGE_KEYS.subjects)) || []; }
+    try { subjects = JSON.parse(localStorage.getItem(skey("subjects"))) || []; }
     catch { subjects = []; }
 }
 
@@ -319,7 +340,7 @@ function addFromPreset(idx) {
     const p = SUBJECT_PRESETS[idx];
     if (!p) return;
     subjects.push({
-        id: Date.now() + Math.random(),
+        id: uid(),
         name: p.name,
         type: p.type,
         ratio: p.ratio,
@@ -345,7 +366,7 @@ function addSubject() {
     const notAdv = document.getElementById("newSubNotAdv").checked;
 
     subjects.push({
-        id: Date.now() + Math.random(),
+        id: uid(),
         name,
         type,
         ratio: type === "haupt" ? ratio : "1:1",
@@ -360,6 +381,7 @@ function addSubject() {
 }
 
 function deleteSubject(subId) {
+    if (!confirm("Fach samt allen Noten löschen?")) return;
     subjects = subjects.filter(s => s.id !== subId);
     saveSubjects();
     renderSubjects();
@@ -381,6 +403,18 @@ function updateSubjectRatio(subId, newRatio) {
     renderSubjects();
 }
 
+function defaultWeight(sub, kind) {
+    if (sub.type === "haupt") return 1;        // SA:Ex-Verhältnis steckt schon in sub.ratio
+    return kind === "gross" ? 2 : 1;           // Nebenfach: großer LN doppelt
+}
+
+function onKindChange(subId) {
+    const sub = subjects.find(s => s.id === subId);
+    if (!sub) return;
+    document.getElementById(`weightInp-${subId}`).value =
+        defaultWeight(sub, document.getElementById(`kindSel-${subId}`).value);
+}
+
 function addGradeToSubject(subId) {
     const sub = subjects.find(s => s.id === subId);
     if (!sub) return;
@@ -390,14 +424,15 @@ function addGradeToSubject(subId) {
     const wInput = document.getElementById(`weightInp-${subId}`);
 
     const parsed = parseGradeToken(gInput.value);
-    if (!parsed) return;
+    if (!parsed) { gInput.setAttribute("aria-invalid", "true"); gInput.focus(); return; }
+    gInput.removeAttribute("aria-invalid");
 
     const kind = kindSel.value;
     let w = parseFloat(String(wInput.value).replace(",", "."));
-    if (isNaN(w) || w <= 0) w = kind === "klein" ? 1 : 2;
+    if (isNaN(w) || w <= 0) w = defaultWeight(sub, kind);
 
     sub.grades.push({
-        id: Date.now() + Math.random(),
+        id: uid(),
         base: parsed.base,
         sign: parsed.sign,
         label: parsed.label,
@@ -456,6 +491,9 @@ function calcSubjectAverage(sub) {
     return weightedMean(sub.grades);
 }
 
+const openWeightPanels = new Set();
+function rememberPanel(subId, el) { el.open ? openWeightPanels.add(subId) : openWeightPanels.delete(subId); }
+
 function renderSubjects() {
     const container = document.getElementById("subjectsContainer");
     const allAvgs = [];
@@ -475,7 +513,7 @@ function renderSubjects() {
                 ? `<option value="sa">Schulaufgabe</option><option value="klein">Kleiner LN</option>`
                 : `<option value="gross">Großer LN</option><option value="klein">Kleiner LN</option>`;
 
-            const defW = sub.type === "haupt" ? (sub.ratio === "2:1" ? 2 : 1) : 2;
+            const defW = defaultWeight(sub, sub.type === "haupt" ? "sa" : "gross");
 
             const pillsHtml = sub.grades.map(g => {
                 const kTxt = g.kind === "sa" ? "SA" : (g.kind === "gross" ? "Groß" : "Klein");
@@ -483,7 +521,7 @@ function renderSubjects() {
                     <span class="grade-pill">
                         <strong>${esc(g.label)}</strong>
                         <span class="cat-mini">${kTxt} · ×${fmt(g.weight, 1)}</span>
-                        <button type="button" class="del-x" onclick="removeGradeFromSubject(${sub.id}, ${g.id})">×</button>
+                        <button type="button" class="del-x" aria-label="Note ${esc(g.label)} löschen" onclick="removeGradeFromSubject(${sub.id}, ${g.id})">×</button>
                     </span>
                 `;
             }).join("");
@@ -492,7 +530,7 @@ function renderSubjects() {
                 <tr>
                     <td><strong>${esc(g.label)}</strong></td>
                     <td>${g.kind === "sa" ? "SA" : (g.kind === "gross" ? "Großer LN" : "Kleiner LN")}</td>
-                    <td><input type="number" class="inline-num" step="0.5" min="0.5" value="${g.weight}" onchange="updateGradeWeight(${sub.id}, ${g.id}, this.value)"></td>
+                    <td><input type="number" class="inline-num" aria-label="Faktor für Note ${esc(g.label)}" step="0.5" min="0.5" value="${g.weight}" onchange="updateGradeWeight(${sub.id}, ${g.id}, this.value)"></td>
                 </tr>
             `).join("");
 
@@ -525,11 +563,11 @@ function renderSubjects() {
                     <div class="form-grid-4" style="margin-top:8px; margin-bottom:4px;">
                         <div>
                             <label for="gradeInp-${sub.id}">Note</label>
-                            <input type="text" id="gradeInp-${sub.id}" placeholder="z.B. 2, 2+, 3-">
+                            <input type="text" id="gradeInp-${sub.id}" placeholder="z.B. 2, 2+, 3-" inputmode="text" autocomplete="off" autocapitalize="off" enterkeyhint="done" onkeydown="if(event.key==='Enter')addGradeToSubject(${sub.id})">
                         </div>
                         <div>
                             <label for="kindSel-${sub.id}">Art</label>
-                            <select id="kindSel-${sub.id}">${kindOptions}</select>
+                            <select id="kindSel-${sub.id}" onchange="onKindChange(${sub.id})">${kindOptions}</select>
                         </div>
                         <div>
                             <label for="weightInp-${sub.id}">Faktor</label>
@@ -543,7 +581,7 @@ function renderSubjects() {
                     <div class="grade-chips">${pillsHtml}</div>
 
                     ${sub.grades.length > 0 ? `
-                        <details class="sub-panel">
+                        <details class="sub-panel" ${openWeightPanels.has(sub.id) ? "open" : ""} ontoggle="rememberPanel(${sub.id}, this)">
                             <summary><span>Gewichtung anpassen</span></summary>
                             <div class="sub-panel-body">
                                 <div class="table-wrap">
@@ -593,8 +631,9 @@ function renderDistFilters() {
 
     catG.innerHTML = distCats.map((st, i) => {
         const lbl = st === "must" ? "≥1×" : (st === "none" ? "0×" : "?");
+        const txt = st === "must" ? "mindestens einmal" : (st === "none" ? "ausgeschlossen" : "offen");
         const cls = st === "must" ? "cat-pill state-must" : (st === "none" ? "cat-pill state-none" : "cat-pill");
-        return `<div class="${cls}" onclick="cycleDistCat(${i})">${i + 1}: ${lbl}</div>`;
+        return `<button type="button" class="${cls}" onclick="cycleDistCat(${i})" aria-label="Note ${i + 1}: ${txt}">${i + 1}: ${lbl}</button>`;
     }).join("");
 
     exG.innerHTML = distExact.map((v, i) => `
@@ -608,6 +647,7 @@ function renderDistFilters() {
 function cycleDistCat(i) {
     const order = ["open", "must", "none"];
     distCats[i] = order[(order.indexOf(distCats[i]) + 1) % 3];
+    if (distCats[i] !== "none" && distExact[i] === 0) distExact[i] = null;   // sonst Widerspruch "≥1×" vs. "genau 0"
     if (distCats[i] === "none" && distExact[i] > 0) distExact[i] = 0;
     renderDistFilters();
     runDistribution();
@@ -785,6 +825,7 @@ function runDistribution() {
     const probs = calibratedPrior(targetAvg, sigma, mask);
     const logP = probs.map(p => (p > 0 ? Math.log(p) : -Infinity));
     const targetVar = sigma * sigma;
+    let truncated = false;
     const candidates = [];
     const remC = [0, 0, 0, 0, 0, 0];
 
@@ -813,7 +854,7 @@ function runDistribution() {
     if (remN === 0) evalTotal([...minCounts]);
     else {
         const dfs = (pos, left, sMin, sMax) => {
-            if (candidates.length >= 120000) return;
+            if (candidates.length >= 120000) { truncated = true; return; }
             const gr = flex[pos], idx = gr - 1, cap = maxCounts[idx] - minCounts[idx];
             if (pos === flex.length - 1) {
                 if (left <= cap && left * gr >= sMin && left * gr <= sMax) {
@@ -855,8 +896,8 @@ function runDistribution() {
     const filtered = [];
     for (let i = 0; i < candidates.length; i++) {
         const it = candidates[i];
-        if (skewF === "light" && !(it.skew < -0.15)) continue;
-        if (skewF === "heavy" && !(it.skew > 0.15)) continue;
+        if (skewF === "light" && !(it.skew > 0.15)) continue;
+        if (skewF === "heavy" && !(it.skew < -0.15)) continue;
         if (skewF === "balanced" && !(Math.abs(it.skew) <= 0.55)) continue;
         if (spreadF === "tight" && !(it.std <= 0.95)) continue;
         if (spreadF === "medium" && !(it.std >= 0.90 && it.std <= 1.35)) continue;
@@ -891,7 +932,7 @@ function runDistribution() {
     }).join("");
 
     out.innerHTML = `
-        <div class="info-box">${filtered.length.toLocaleString("de-DE")} Treffer</div>
+        <div class="info-box">${filtered.length.toLocaleString("de-DE")} Treffer${truncated ? " (Suche bei 120.000 Kandidaten abgebrochen, Ergebnis unvollständig)" : ""}</div>
         <div class="table-wrap">
             <table>
                 <thead><tr><th>#</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>Noten</th><th>Ø</th><th>Streuung</th><th>Anteil</th></tr></thead>
@@ -1005,8 +1046,8 @@ function renderKeyTable() {
     bodyEl.innerHTML = keyRows.map((r, i) => `
         <tr style="${i === hitIdx ? "background:var(--primary-soft);" : ""}">
             <td><strong>Note ${r.grade}</strong></td>
-            <td><input type="number" class="inline-num" step="0.5" min="0" max="100" value="${r.pct.toFixed(1)}" onchange="editKeyPct(${i}, this.value)"> %</td>
-            <td><input type="number" class="inline-num" step="0.5" min="0" max="${maxP}" value="${r.pts.toFixed(1)}" onchange="editKeyPts(${i}, this.value)"> Pkt.</td>
+            <td><input type="number" class="inline-num" aria-label="Prozent ab Note ${r.grade}" step="0.5" min="0" max="100" value="${r.pct.toFixed(1)}" onchange="editKeyPct(${i}, this.value)"> %</td>
+            <td><input type="number" class="inline-num" aria-label="Punkte ab Note ${r.grade}" step="0.5" min="0" max="${maxP}" value="${r.pts.toFixed(1)}" onchange="editKeyPts(${i}, this.value)"> Pkt.</td>
             <td><button type="button" class="btn btn-sm" onclick="toggleKeyLock(${i})">${r.locked ? "Fix" : "Auto"}</button></td>
         </tr>
     `).join("");
@@ -1051,8 +1092,13 @@ function updateComparison() {
 
 // --- VERLAUF ---
 function getArchive() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.archive)) || []; }
+    try { return JSON.parse(localStorage.getItem(skey("archive"))) || []; }
     catch { return []; }
+}
+
+function setArchive(list) {
+    localStorage.setItem(skey("archive"), JSON.stringify(list));
+    pushCloudState();
 }
 
 function saveFullSnapshot() {
@@ -1076,15 +1122,15 @@ function saveFullSnapshot() {
     };
     const list = getArchive();
     list.unshift(snap);
-    localStorage.setItem(STORAGE_KEYS.archive, JSON.stringify(list.slice(0, 25)));
     inp.value = "";
+    setArchive(list.slice(0, 25));
     renderArchive();
-    pushCloudState();
 }
 
 function loadSnapshot(id) {
     const snap = getArchive().find(x => x.id === id);
     if (!snap) return;
+    if (!confirm("Aktuelle Fächer werden durch diesen Stand ersetzt. Fortfahren?")) return;
 
     if (Array.isArray(snap.subjects)) {
         subjects = JSON.parse(JSON.stringify(snap.subjects));
@@ -1110,10 +1156,9 @@ function loadSnapshot(id) {
 }
 
 function deleteSnapshot(id) {
-    const next = getArchive().filter(x => x.id !== id);
-    localStorage.setItem(STORAGE_KEYS.archive, JSON.stringify(next));
+    if (!confirm("Gespeicherten Stand löschen?")) return;
+    setArchive(getArchive().filter(x => x.id !== id));
     renderArchive();
-    pushCloudState();
 }
 
 function renderArchive() {

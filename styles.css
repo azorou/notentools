@@ -546,3 +546,34 @@ td.seq-cell { text-align: left; font-family: ui-monospace, monospace; font-size:
     width: 100%;
     padding: 9px 12px;
 }
+:root[data-theme="dark"] { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+
+/* Passwortfeld stylen + iOS-Zoom verhindern (min. 16px) */
+input[type="password"] {
+    width: 100%; padding: 7px 9px; border: 1px solid var(--border);
+    border-radius: 7px; background: var(--surface-2); color: var(--text);
+}
+input[type="text"], input[type="number"], input[type="password"], select { font-size: 16px; }
+@media (max-width: 760px) {
+    .inline-num, .mini-exact input { font-size: 16px !important; }
+}
+
+/* Fokus sichtbar für Buttons & Tastatur */
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+input:focus-visible, select:focus-visible { outline: none; }
+
+/* Touch-Ziele */
+.nav-btn { min-height: 48px; }
+.grade-pill .del-x { min-width: 24px; min-height: 24px; font-size: 1rem; line-height: 1; }
+.topbar { flex-wrap: wrap; }
+
+/* Kategorie-Pills sind jetzt <button> */
+.cat-pill { font-family: inherit; color: var(--text); min-height: 34px; }
+
+/* Ungültige Eingabe */
+input[aria-invalid="true"] { border-color: var(--warn-text); box-shadow: 0 0 0 2px var(--warn-bg); }
+
+@media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+}
