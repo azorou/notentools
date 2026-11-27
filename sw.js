@@ -1,4 +1,4 @@
-const VERSION = "notenapp-v4";
+const VERSION = "notenapp-v5";
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const ASSETS = [
