@@ -3,62 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="NotenApp: Notenschnitt, Notenverteilung und Punkteschlüssel.">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="NotenApp">
     <title>NotenApp</title>
+    <link rel="icon" type="image/png" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
-    <link rel="icon" type="image/png" href="icons/icon-192.png">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-    <meta name="apple-mobile-web-app-title" content="NotenApp">
 </head>
 <body>
 
-<!-- LOGIN / KONTO-ANSICHT (NUR BENUTZERNAME + PASSWORT) -->
+<a class="skip-link" href="#mainContent">Zum Inhalt springen</a>
+
+<!-- ANMELDUNG -->
 <div id="authScreen" class="auth-screen">
     <div class="auth-card">
-        <div class="auth-header">
-            <h1 class="app-title">NotenApp</h1>
-            <p class="app-sub">Konto mit Benutzername &amp; Passwort</p>
+        <div class="auth-logo" aria-hidden="true">N</div>
+        <h1 class="app-title auth-title">NotenApp</h1>
+        <p class="app-sub auth-sub">Schnitt, Verteilung &amp; Punkteschlüssel</p>
+
+        <div class="seg seg-full" role="group" aria-label="Anmelden oder registrieren">
+            <button type="button" class="seg-btn active" id="authTab-login" aria-pressed="true" onclick="setAuthMode('login')">Anmelden</button>
+            <button type="button" class="seg-btn" id="authTab-register" aria-pressed="false" onclick="setAuthMode('register')">Registrieren</button>
         </div>
+
         <form id="authForm" onsubmit="handleAuthSubmit(event)">
-    <div class="auth-field">
-        <label for="authUsername">Benutzername</label>
-        <input type="text" id="authUsername" autocomplete="username" autocapitalize="none" required placeholder="dein_name">
-    </div>
-    <div class="auth-field">
-        <label for="authPassword">Passwort</label>
-        <input type="password" id="authPassword" autocomplete="current-password" required minlength="6" placeholder="Mind. 6 Zeichen">
-    </div>
-    <button type="submit" class="btn btn-primary auth-submit" id="authSubmitBtn">Anmelden</button>
-    <button type="button" class="btn auth-submit" id="authModeBtn" onclick="toggleAuthMode()" style="margin-top:8px;">Neues Konto erstellen</button>
-    <div id="authStatus" class="hint" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
-</form>
+            <div class="field">
+                <label for="authUsername">Benutzername</label>
+                <input type="text" id="authUsername" autocomplete="username" autocapitalize="none" required placeholder="dein_name">
+            </div>
+            <div class="field">
+                <label for="authPassword">Passwort</label>
+                <input type="password" id="authPassword" autocomplete="current-password" required minlength="6" placeholder="Mind. 6 Zeichen">
+            </div>
+            <p class="hint" id="authHint" hidden>Du brauchst keine E-Mail. Merke dir dein Passwort gut, denn ohne E-Mail kann es nicht zurückgesetzt werden.</p>
+            <button type="submit" class="btn btn-primary btn-block" id="authSubmitBtn">Anmelden</button>
+            <div id="authStatus" class="auth-status" role="alert" aria-live="assertive"></div>
+        </form>
     </div>
 </div>
 
 <!-- HAUPT-APP -->
 <div id="appShell" class="app-shell" style="display:none;">
     <header class="topbar">
-        <div>
-            <h1 class="app-title">NotenApp</h1>
-            <p class="app-sub" id="userBadge">Angemeldet</p>
+        <div class="brand">
+            <span class="brand-mark" aria-hidden="true">N</span>
+            <div>
+                <h1 class="app-title">NotenApp</h1>
+                <p class="app-sub" id="userBadge">Angemeldet</p>
+            </div>
         </div>
-        <div class="topbar-actions">
-            <button type="button" class="chip-btn" id="installBtn" style="display:none;">Installieren</button>
-            <button type="button" class="chip-btn" onclick="cycleTheme()" id="themeBtn" aria-label="Farbschema wechseln">Auto</button>
-            <button type="button" class="chip-btn" onclick="handleLogout()">Abmelden</button>
-        </div>
+        <button type="button" class="icon-btn" onclick="openDialog('menuDialog')" aria-label="Menü öffnen" aria-haspopup="dialog">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>
+        </button>
     </header>
 
-    <main class="main-content">
-        <!-- TAB 1: FÄCHER & GESAMTSCHNITT -->
-        <section id="view-subjects" class="tab-view active">
+    <main id="mainContent" class="main-content" tabindex="-1">
+
+        <!-- TAB 1: FÄCHER -->
+        <section id="view-subjects" class="tab-view active" aria-labelledby="h-subjects">
             <div class="hero-summary">
                 <div class="hero-metric">
                     <span class="hero-label">Gesamtschnitt</span>
@@ -67,201 +77,261 @@
                 </div>
                 <div class="hero-divider"></div>
                 <div class="hero-metric">
-                    <span class="hero-label">Vorrückungsfächer</span>
+                    <span class="hero-label">Vorrückung</span>
                     <strong class="hero-value accent" id="overallAvgAdv">–</strong>
                     <small class="hero-meta" id="overallMetaAdv">Ohne „Kein Vorrückungsfach“</small>
                 </div>
             </div>
 
-            <details class="card-panel" open>
-                <summary><span>Vorlagen</span></summary>
-                <div class="panel-body">
-                    <div class="preset-grid" id="presetSubjectsGrid"></div>
-                </div>
-            </details>
-
-            <details class="card-panel">
-                <summary><span>Eigenes Fach anlegen</span></summary>
-                <div class="panel-body">
-                    <div class="form-grid-4">
-                        <div>
-                            <label for="newSubName">Fach</label>
-                            <input type="text" id="newSubName" placeholder="z.B. Informatik">
-                        </div>
-                        <div>
-                            <label for="newSubType">Art</label>
-                            <select id="newSubType" onchange="toggleNewSubDefaults()">
-                                <option value="haupt">Hauptfach</option>
-                                <option value="neben">Nebenfach</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="newSubRatio">Verhältnis</label>
-                            <select id="newSubRatio">
-                                <option value="2:1">2:1</option>
-                                <option value="1:1">1:1</option>
-                            </select>
-                        </div>
-                        <div class="check-col">
-                            <label class="checkbox-row">
-                                <input type="checkbox" id="newSubNotAdv">
-                                <span>Kein Vorrückungsfach</span>
-                            </label>
-                        </div>
-                    </div>
-                    <button type="button" class="btn btn-primary" onclick="addSubject()">Fach anlegen</button>
-                </div>
-            </details>
+            <div class="section-head">
+                <h2 id="h-subjects">Meine Fächer</h2>
+                <button type="button" class="btn btn-primary" onclick="openDialog('addSubjectDialog')">+ Fach</button>
+            </div>
 
             <div id="subjectsContainer"></div>
         </section>
 
         <!-- TAB 2: VERTEILUNG -->
-        <section id="view-distribution" class="tab-view">
-            <details class="card-panel" open>
-                <summary><span>Notenverteilung</span></summary>
-                <div class="panel-body">
-                    <div class="form-grid-4">
-                        <div>
-                            <label for="distN">Arbeiten (N)</label>
-                            <input type="number" id="distN" min="1" max="60" step="1" placeholder="25" oninput="scheduleDist()" inputmode="numeric">
-                        </div>
-                        <div>
-                            <label for="distAvg">Schnitt (Ø)</label>
-                            <input type="text" id="distAvg" placeholder="2,68" oninput="scheduleDist()" inputmode="decimal">
-                        </div>
-                        <div>
-                            <label for="distSigma">Streuung: <strong id="distSigmaVal">1,00</strong></label>
-                            <input type="range" id="distSigma" min="0.55" max="1.75" step="0.05" value="1.00" oninput="scheduleDist()">
-                        </div>
-                        <div>
-                            <label for="distKnown">Bekannte Noten</label>
-                            <input type="text" id="distKnown" placeholder="312243" oninput="scheduleDist()" inputmode="numeric">
-                        </div>
+        <section id="view-distribution" class="tab-view" aria-labelledby="h-dist">
+            <div class="section-head">
+                <h2 id="h-dist">Notenverteilung</h2>
+            </div>
+            <p class="section-desc">Welche Verteilungen passen zu Schnitt und Anzahl einer Arbeit?</p>
+
+            <div class="card">
+                <div class="form-grid-2">
+                    <div class="field">
+                        <label for="distN">Arbeiten (N)</label>
+                        <input type="number" id="distN" min="1" max="60" step="1" inputmode="numeric" placeholder="25" oninput="scheduleDist()">
                     </div>
-
-                    <details class="sub-panel">
-                        <summary><span>Filter &amp; Bedingungen</span></summary>
-                        <div class="sub-panel-body">
-                            <div class="form-grid-2" style="margin-bottom:8px;">
-                                <div>
-                                    <label for="distSkewFilter">Tendenz</label>
-                                    <select id="distSkewFilter" onchange="scheduleDist()">
-                                        <option value="any">Alle</option>
-                                        <option value="light">Eher leicht (1–3)</option>
-                                        <option value="balanced">Ausgeglichen</option>
-                                        <option value="heavy">Eher schwer (4–6)</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label for="distSpreadFilter">Streuung</label>
-                                    <select id="distSpreadFilter" onchange="scheduleDist()">
-                                        <option value="any">Alle</option>
-                                        <option value="tight">Eng</option>
-                                        <option value="medium">Mittel</option>
-                                        <option value="wide">Weit</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="toolbar">
-                                <button type="button" class="btn btn-sm" onclick="applyDistPreset('all')">Alle 1–6</button>
-                                <button type="button" class="btn btn-sm" onclick="applyDistPreset('no6')">Keine 6</button>
-                                <button type="button" class="btn btn-sm" onclick="applyDistPreset('no56')">Keine 5 &amp; 6</button>
-                                <button type="button" class="btn btn-sm btn-danger" onclick="applyDistPreset('reset')">Reset</button>
-                            </div>
-                            <div class="grid-6" id="distCatGrid"></div>
-                            <div class="grid-6" id="distExactGrid" style="margin-top:8px;"></div>
-                        </div>
-                    </details>
-
-                    <div id="distOutput" aria-live="polite"></div>
+                    <div class="field">
+                        <label for="distAvg">Schnitt (Ø)</label>
+                        <input type="text" id="distAvg" inputmode="decimal" placeholder="2,68" oninput="scheduleDist()">
+                    </div>
                 </div>
-            </details>
+                <div class="field">
+                    <label for="distKnown">Bekannte Noten <span class="label-hint">(optional, Ziffern 1–6)</span></label>
+                    <input type="text" id="distKnown" inputmode="numeric" placeholder="312243" oninput="scheduleDist()">
+                </div>
+                <div class="field">
+                    <label for="distSigma">Streuung: <strong id="distSigmaVal">1,00</strong></label>
+                    <input type="range" id="distSigma" min="0.55" max="1.75" step="0.05" value="1.00" oninput="scheduleDist()">
+                </div>
+
+                <details class="panel">
+                    <summary>Filter &amp; Bedingungen</summary>
+                    <div class="panel-body">
+                        <div class="form-grid-2">
+                            <div class="field">
+                                <label for="distSkewFilter">Tendenz</label>
+                                <select id="distSkewFilter" onchange="scheduleDist()">
+                                    <option value="any">Alle</option>
+                                    <option value="light">Eher leicht (1–3)</option>
+                                    <option value="balanced">Ausgeglichen</option>
+                                    <option value="heavy">Eher schwer (4–6)</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="distSpreadFilter">Streuung</label>
+                                <select id="distSpreadFilter" onchange="scheduleDist()">
+                                    <option value="any">Alle</option>
+                                    <option value="tight">Eng</option>
+                                    <option value="medium">Mittel</option>
+                                    <option value="wide">Weit</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <span class="setting-label">Schnellauswahl</span>
+                        <div class="toolbar">
+                            <button type="button" class="btn btn-sm" onclick="applyDistPreset('all')">Alle 1–6</button>
+                            <button type="button" class="btn btn-sm" onclick="applyDistPreset('no6')">Keine 6</button>
+                            <button type="button" class="btn btn-sm" onclick="applyDistPreset('no56')">Keine 5 &amp; 6</button>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="applyDistPreset('reset')">Zurücksetzen</button>
+                        </div>
+
+                        <span class="setting-label">Pro Note</span>
+                        <p class="hint">Tippen wechselt: ? offen → ≥1× muss vorkommen → 0× ausgeschlossen.</p>
+                        <div class="grid-6" id="distCatGrid"></div>
+                        <span class="setting-label" style="margin-top:12px;">Genaue Anzahl (optional)</span>
+                        <div class="grid-6" id="distExactGrid"></div>
+                    </div>
+                </details>
+            </div>
+
+            <div id="distOutput" aria-live="polite"></div>
         </section>
 
-        <!-- TAB 3: SCHLÜSSEL & VERGLEICH -->
-        <section id="view-tools" class="tab-view">
-            <details class="card-panel" open>
-                <summary><span>Punkteschlüssel</span></summary>
-                <div class="panel-body">
-                    <div class="form-grid-3">
-                        <div>
-                            <label for="keyMaxPts">Maximalpunkte</label>
-                            <input type="number" id="keyMaxPts" min="0.5" step="0.5" placeholder="60" oninput="syncKeyFromMax()">
-                        </div>
-                        <div>
-                            <label for="keyGotPts">Eigene Punkte</label>
-                            <input type="number" id="keyGotPts" min="0" step="0.5" placeholder="46" oninput="renderKeyTable()">
-                        </div>
-                        <div class="check-col">
-                            <button type="button" class="btn" onclick="resetKeyTable()">Standard</button>
-                        </div>
-                    </div>
-                    <div id="keySummary" aria-live="polite"></div>
-                    <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Note</th>
-                                    <th>Ab %</th>
-                                    <th>Ab Punkte</th>
-                                    <th>Sperre</th>
-                                </tr>
-                            </thead>
-                            <tbody id="keyTableBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </details>
+        <!-- TAB 3: WERKZEUGE -->
+        <section id="view-tools" class="tab-view" aria-labelledby="h-tools">
+            <div class="section-head">
+                <h2 id="h-tools">Werkzeuge</h2>
+            </div>
 
-            <details class="card-panel">
-                <summary><span>Vergleich</span></summary>
-                <div class="panel-body">
-                    <div class="form-grid-2">
-                        <div>
-                            <label for="cmpA">Reihe A</label>
-                            <input type="text" id="cmpA" placeholder="122334" oninput="updateComparison()" inputmode="numeric">
-                        </div>
-                        <div>
-                            <label for="cmpB">Reihe B</label>
-                            <input type="text" id="cmpB" placeholder="223344" oninput="updateComparison()" inputmode="numeric">
-                        </div>
+            <div class="seg seg-full" role="group" aria-label="Werkzeug wählen">
+                <button type="button" class="seg-btn active" data-tool="key" aria-pressed="true" onclick="switchTool('key')">Punkteschlüssel</button>
+                <button type="button" class="seg-btn" data-tool="compare" aria-pressed="false" onclick="switchTool('compare')">Vergleich</button>
+            </div>
+
+            <div class="card tool-panel" data-tool="key">
+                <div class="form-grid-2">
+                    <div class="field">
+                        <label for="keyMaxPts">Maximalpunkte</label>
+                        <input type="number" id="keyMaxPts" min="0.5" step="0.5" inputmode="decimal" placeholder="60" oninput="syncKeyFromMax()">
                     </div>
-                    <div id="cmpOutput" aria-live="polite"></div>
+                    <div class="field">
+                        <label for="keyGotPts">Eigene Punkte</label>
+                        <input type="number" id="keyGotPts" min="0" step="0.5" inputmode="decimal" placeholder="46" oninput="renderKeyTable()">
+                    </div>
                 </div>
-            </details>
+                <div id="keySummary" aria-live="polite"></div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col">Note</th>
+                                <th scope="col">Ab %</th>
+                                <th scope="col">Ab Punkte</th>
+                                <th scope="col">Grenze</th>
+                            </tr>
+                        </thead>
+                        <tbody id="keyTableBody"></tbody>
+                    </table>
+                </div>
+                <div class="key-foot">
+                    <p class="hint">Mit „Fix“ bleibt eine Grenze beim Anpassen der anderen unverändert.</p>
+                    <button type="button" class="btn btn-sm" onclick="resetKeyTable()">Standard</button>
+                </div>
+            </div>
+
+            <div class="card tool-panel" data-tool="compare" hidden>
+                <p class="section-desc" style="margin-top:0;">Zwei Notenreihen direkt gegenüberstellen.</p>
+                <div class="form-grid-2">
+                    <div class="field">
+                        <label for="cmpA">Reihe A</label>
+                        <input type="text" id="cmpA" inputmode="numeric" placeholder="122334" oninput="updateComparison()">
+                    </div>
+                    <div class="field">
+                        <label for="cmpB">Reihe B</label>
+                        <input type="text" id="cmpB" inputmode="numeric" placeholder="223344" oninput="updateComparison()">
+                    </div>
+                </div>
+                <div id="cmpOutput" aria-live="polite"></div>
+            </div>
         </section>
 
         <!-- TAB 4: VERLAUF -->
-        <section id="view-archive" class="tab-view">
-            <details class="card-panel" open>
-                <summary><span>Prüfung komplett speichern</span></summary>
-                <div class="panel-body">
-                    <div class="save-row">
-                        <input type="text" id="archiveName" placeholder="Name (z.B. Halbjahr 1)">
-                        <button type="button" class="btn btn-primary" onclick="saveFullSnapshot()">Speichern</button>
-                    </div>
+        <section id="view-archive" class="tab-view" aria-labelledby="h-archive">
+            <div class="section-head">
+                <h2 id="h-archive">Verlauf</h2>
+            </div>
+            <div class="card">
+                <label for="archiveName">Aktuellen Stand speichern</label>
+                <div class="save-row">
+                    <input type="text" id="archiveName" placeholder="Name, z. B. Halbjahr 1">
+                    <button type="button" class="btn btn-primary" onclick="saveFullSnapshot()">Speichern</button>
                 </div>
-            </details>
+            </div>
             <div id="archiveList"></div>
         </section>
     </main>
 
     <nav class="bottom-nav" aria-label="Hauptnavigation">
-        <button type="button" class="nav-btn active" data-tab="subjects" onclick="switchTab('subjects')">
+        <button type="button" class="nav-btn active" data-tab="subjects" aria-current="page" onclick="switchTab('subjects')">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v15H6a2 2 0 0 0-2 2z"/><path d="M4 19.5A2 2 0 0 0 6 21.5h13"/></svg>
             <span>Fächer</span>
         </button>
         <button type="button" class="nav-btn" data-tab="distribution" onclick="switchTab('distribution')">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>
             <span>Verteilung</span>
         </button>
         <button type="button" class="nav-btn" data-tab="tools" onclick="switchTab('tools')">
-            <span>Schlüssel</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+            <span>Werkzeuge</span>
         </button>
         <button type="button" class="nav-btn" data-tab="archive" onclick="switchTab('archive')">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
             <span>Verlauf</span>
         </button>
     </nav>
 </div>
+
+<!-- DIALOG: FACH HINZUFÜGEN -->
+<dialog id="addSubjectDialog" class="sheet" aria-labelledby="addTitle">
+    <div class="sheet-body">
+        <div class="sheet-head">
+            <h2 id="addTitle">Fach hinzufügen</h2>
+            <button type="button" class="icon-btn" onclick="closeDialog('addSubjectDialog')" aria-label="Schließen">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+        </div>
+
+        <h3 class="sheet-sub">Vorlagen</h3>
+        <div class="preset-grid" id="presetSubjectsGrid"></div>
+
+        <h3 class="sheet-sub">Eigenes Fach</h3>
+        <form onsubmit="event.preventDefault(); addSubject();">
+            <div class="field">
+                <label for="newSubName">Name</label>
+                <input type="text" id="newSubName" placeholder="z. B. Latein" autocomplete="off">
+            </div>
+            <div class="form-grid-2">
+                <div class="field">
+                    <label for="newSubType">Art</label>
+                    <select id="newSubType" onchange="toggleNewSubDefaults()">
+                        <option value="haupt">Hauptfach</option>
+                        <option value="neben">Nebenfach</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="newSubRatio">Verhältnis SA : LN</label>
+                    <select id="newSubRatio">
+                        <option value="2:1">2 : 1</option>
+                        <option value="1:1">1 : 1</option>
+                    </select>
+                </div>
+            </div>
+            <label class="checkbox-row" style="margin-bottom:12px;">
+                <input type="checkbox" id="newSubNotAdv">
+                <span>Kein Vorrückungsfach</span>
+            </label>
+            <button type="submit" class="btn btn-primary btn-block">Fach anlegen</button>
+        </form>
+    </div>
+</dialog>
+
+<!-- DIALOG: MENÜ -->
+<dialog id="menuDialog" class="sheet" aria-labelledby="menuTitle">
+    <div class="sheet-body">
+        <div class="sheet-head">
+            <h2 id="menuTitle">Menü</h2>
+            <button type="button" class="icon-btn" onclick="closeDialog('menuDialog')" aria-label="Schließen">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+        </div>
+
+        <p class="hint">Angemeldet als <strong id="menuUser">–</strong></p>
+
+        <div class="menu-group">
+            <span class="setting-label" id="themeLabel">Darstellung</span>
+            <div class="seg seg-full" role="group" aria-labelledby="themeLabel">
+                <button type="button" class="seg-btn" data-theme-opt="auto" aria-pressed="true" onclick="setTheme('auto')">Auto</button>
+                <button type="button" class="seg-btn" data-theme-opt="light" aria-pressed="false" onclick="setTheme('light')">Hell</button>
+                <button type="button" class="seg-btn" data-theme-opt="dark" aria-pressed="false" onclick="setTheme('dark')">Dunkel</button>
+            </div>
+        </div>
+
+        <div class="menu-group">
+            <span class="setting-label">App</span>
+            <button type="button" class="btn btn-block" id="installBtn" style="display:none;">App installieren</button>
+            <p class="hint">iPhone/iPad: Teilen → „Zum Home-Bildschirm“.</p>
+        </div>
+
+        <button type="button" class="btn btn-danger btn-block" onclick="handleLogout()">Abmelden</button>
+    </div>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script src="app.js"></script>
 <script>
