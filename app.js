@@ -68,6 +68,8 @@ function showApp(userLabel) {
     document.getElementById("authScreen").style.display = "none";
     document.getElementById("appShell").style.display = "flex";
     document.getElementById("userBadge").textContent = `Konto: ${userLabel}`;
+    const mu = document.getElementById("menuUser");
+    if (mu) mu.textContent = userLabel;
     switchTab("subjects");
 }
 
@@ -81,12 +83,17 @@ let syncTimer = null;
 
 function setAuthStatus(t) { document.getElementById("authStatus").textContent = t; }
 
-function toggleAuthMode() {
-    authMode = authMode === "login" ? "register" : "login";
-    const reg = authMode === "register";
+function setAuthMode(mode) {
+    authMode = mode;
+    const reg = mode === "register";
     document.getElementById("authSubmitBtn").textContent = reg ? "Konto erstellen" : "Anmelden";
-    document.getElementById("authModeBtn").textContent = reg ? "Ich habe schon ein Konto" : "Neues Konto erstellen";
     document.getElementById("authPassword").autocomplete = reg ? "new-password" : "current-password";
+    document.getElementById("authHint").hidden = !reg;
+    ["login", "register"].forEach(m => {
+        const b = document.getElementById("authTab-" + m);
+        b.classList.toggle("active", m === mode);
+        b.setAttribute("aria-pressed", m === mode ? "true" : "false");
+    });
     setAuthStatus("");
 }
 
@@ -154,6 +161,7 @@ async function handleAuthSubmit(event) {
 }
 
 async function handleLogout() {
+    closeDialog("menuDialog");
     await flushCloudState();
     if (sbClient) await sbClient.auth.signOut();
 }
@@ -217,24 +225,24 @@ window.addEventListener("online", flushCloudState);
 
 // --- THEME ---
 function initTheme() {
-    const saved = localStorage.getItem(STORAGE_KEYS.theme) || "auto";
-    document.documentElement.setAttribute("data-theme", saved);
-    updateThemeBtn(saved);
+    setTheme(localStorage.getItem(STORAGE_KEYS.theme) || "auto");
 }
 
-function cycleTheme() {
-    const order = ["auto", "light", "dark"];
-    const cur = localStorage.getItem(STORAGE_KEYS.theme) || "auto";
-    const next = order[(order.indexOf(cur) + 1) % order.length];
-    localStorage.setItem(STORAGE_KEYS.theme, next);
-    document.documentElement.setAttribute("data-theme", next);
-    updateThemeBtn(next);
+function setTheme(mode) {
+    localStorage.setItem(STORAGE_KEYS.theme, mode);
+    document.documentElement.setAttribute("data-theme", mode);
+    updateThemeBtn(mode);
 }
 
 function updateThemeBtn(mode) {
-    const btn = document.getElementById("themeBtn");
-    if (!btn) return;
-    btn.textContent = mode === "dark" ? "Dunkel" : (mode === "light" ? "Hell" : "Auto");
+    document.querySelectorAll("[data-theme-opt]").forEach(b => {
+        const on = b.dataset.themeOpt === mode;
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    const dark = mode === "dark" || (mode === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", dark ? "#111827" : "#ffffff");
 }
 
 // --- PWA INSTALL ---
@@ -267,6 +275,41 @@ function switchTab(tabName) {
     btn?.classList.add("active");
     btn?.setAttribute("aria-current", "page");
     window.scrollTo(0, 0);
+}
+
+function switchTool(name) {
+    document.querySelectorAll(".tool-panel").forEach(p => { p.hidden = p.dataset.tool !== name; });
+    document.querySelectorAll(".seg-btn[data-tool]").forEach(b => {
+        const on = b.dataset.tool === name;
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+}
+
+// --- DIALOGE & TOAST ---
+function openDialog(id) {
+    const d = document.getElementById(id);
+    if (d && !d.open) d.showModal();
+}
+
+function closeDialog(id) {
+    const d = document.getElementById(id);
+    if (d && d.open) d.close();
+}
+
+// Klick auf den Hintergrund schließt das Dialogfenster
+document.addEventListener("click", (e) => {
+    if (e.target instanceof HTMLDialogElement) e.target.close();
+});
+
+let toastTimer = null;
+function toast(msg) {
+    const el = document.getElementById("toast");
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
 }
 
 // --- HILFSFUNKTIONEN ---
@@ -322,18 +365,20 @@ function loadSubjects() {
 function renderPresets() {
     const grid = document.getElementById("presetSubjectsGrid");
     if (!grid) return;
-    grid.innerHTML = SUBJECT_PRESETS.map((p, idx) => `
-        <button type="button" class="preset-card" onclick="addFromPreset(${idx})">
-            <div class="preset-left">
-                <span class="preset-icon">${esc(p.icon)}</span>
-                <div style="min-width:0;">
-                    <div class="preset-title">${esc(p.name)}</div>
-                    <div class="preset-ratio">${esc(p.ratioLabel)}</div>
-                </div>
-            </div>
-            <span style="font-size:0.85rem; font-weight:700; color:var(--primary);">+</span>
-        </button>
-    `).join("");
+    const have = new Set(subjects.map(s => s.name.toLowerCase()));
+    grid.innerHTML = SUBJECT_PRESETS.map((p, idx) => {
+        const added = have.has(p.name.toLowerCase());
+        return `
+            <button type="button" class="preset-card${added ? " is-added" : ""}" ${added ? "disabled" : ""} onclick="addFromPreset(${idx})">
+                <span class="preset-icon" aria-hidden="true">${esc(p.icon)}</span>
+                <span class="preset-text">
+                    <span class="preset-title">${esc(p.name)}</span>
+                    <span class="preset-ratio">${esc(p.ratioLabel)}</span>
+                </span>
+                <span class="preset-add" aria-hidden="true">${added ? "✓" : "+"}</span>
+                <span class="sr-only">${added ? "bereits angelegt" : "hinzufügen"}</span>
+            </button>`;
+    }).join("");
 }
 
 function addFromPreset(idx) {
@@ -349,6 +394,7 @@ function addFromPreset(idx) {
     });
     saveSubjects();
     renderSubjects();
+    toast(`${p.name} hinzugefügt`);
 }
 
 function toggleNewSubDefaults() {
@@ -359,7 +405,8 @@ function toggleNewSubDefaults() {
 function addSubject() {
     const nameInput = document.getElementById("newSubName");
     const name = nameInput.value.trim();
-    if (!name) return;
+    if (!name) { nameInput.setAttribute("aria-invalid", "true"); nameInput.focus(); return; }
+    nameInput.removeAttribute("aria-invalid");
 
     const type = document.getElementById("newSubType").value;
     const ratio = document.getElementById("newSubRatio").value;
@@ -378,6 +425,8 @@ function addSubject() {
     document.getElementById("newSubNotAdv").checked = false;
     saveSubjects();
     renderSubjects();
+    closeDialog("addSubjectDialog");
+    toast(`${name} hinzugefügt`);
 }
 
 function deleteSubject(subId) {
@@ -500,7 +549,12 @@ function renderSubjects() {
     const advAvgs = [];
 
     if (!subjects.length) {
-        container.innerHTML = `<div class="info-box">Vorlage wählen oder eigenes Fach anlegen.</div>`;
+        container.innerHTML = `
+            <div class="empty-state">
+                <p><strong>Noch keine Fächer</strong></p>
+                <p class="hint">Wähle Vorlagen oder lege ein eigenes Fach an.</p>
+                <button type="button" class="btn btn-primary" onclick="openDialog('addSubjectDialog')">Fach hinzufügen</button>
+            </div>`;
     } else {
         container.innerHTML = subjects.map(sub => {
             const avg = calcSubjectAverage(sub);
@@ -514,6 +568,7 @@ function renderSubjects() {
                 : `<option value="gross">Großer LN</option><option value="klein">Kleiner LN</option>`;
 
             const defW = defaultWeight(sub, sub.type === "haupt" ? "sa" : "gross");
+            const n = sub.grades.length;
 
             const pillsHtml = sub.grades.map(g => {
                 const kTxt = g.kind === "sa" ? "SA" : (g.kind === "gross" ? "Groß" : "Klein");
@@ -522,79 +577,81 @@ function renderSubjects() {
                         <strong>${esc(g.label)}</strong>
                         <span class="cat-mini">${kTxt} · ×${fmt(g.weight, 1)}</span>
                         <button type="button" class="del-x" aria-label="Note ${esc(g.label)} löschen" onclick="removeGradeFromSubject(${sub.id}, ${g.id})">×</button>
-                    </span>
-                `;
+                    </span>`;
             }).join("");
 
             const weightRows = sub.grades.map(g => `
                 <tr>
                     <td><strong>${esc(g.label)}</strong></td>
-                    <td>${g.kind === "sa" ? "SA" : (g.kind === "gross" ? "Großer LN" : "Kleiner LN")}</td>
+                    <td>${g.kind === "sa" ? "Schulaufgabe" : (g.kind === "gross" ? "Großer LN" : "Kleiner LN")}</td>
                     <td><input type="number" class="inline-num" aria-label="Faktor für Note ${esc(g.label)}" step="0.5" min="0.5" value="${g.weight}" onchange="updateGradeWeight(${sub.id}, ${g.id}, this.value)"></td>
-                </tr>
-            `).join("");
+                </tr>`).join("");
 
             return `
-                <div class="subject-card">
-                    <div class="subject-top">
-                        <div>
-                            <div class="subject-title-row">
-                                <h3 class="subject-name">${esc(sub.name)}</h3>
-                                <span class="tag">${sub.type === "haupt" ? "Hauptfach" : "Nebenfach"}</span>
-                                ${sub.notAdvancement ? `<span class="tag muted-tag">Kein Vorrückungsfach</span>` : ""}
+                <article class="subject-card">
+                    <header class="subject-head">
+                        <div class="subject-info">
+                            <h3 class="subject-name">${esc(sub.name)}</h3>
+                            <div class="subject-tags">
+                                <span class="tag">${sub.type === "haupt" ? `Hauptfach · ${esc(sub.ratio)}` : "Nebenfach"}</span>
+                                ${sub.notAdvancement ? `<span class="tag muted-tag">Nicht vorrückungsrelevant</span>` : ""}
                             </div>
-                            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:6px;">
+                        </div>
+                        <div class="subject-avg">
+                            <span class="subject-avg-num">${avg !== null ? fmt(avg, 2) : "–"}</span>
+                            <span class="subject-avg-label">${n} ${n === 1 ? "Note" : "Noten"}</span>
+                        </div>
+                    </header>
+
+                    ${n ? `<div class="grade-chips">${pillsHtml}</div>` : `<p class="hint empty-hint">Noch keine Noten eingetragen.</p>`}
+
+                    <div class="add-grade-row">
+                        <div class="field">
+                            <label for="gradeInp-${sub.id}">Note</label>
+                            <input type="text" id="gradeInp-${sub.id}" placeholder="2+" inputmode="text" autocomplete="off" autocapitalize="off" enterkeyhint="done" onkeydown="if(event.key==='Enter')addGradeToSubject(${sub.id})">
+                        </div>
+                        <div class="field">
+                            <label for="kindSel-${sub.id}">Art</label>
+                            <select id="kindSel-${sub.id}" onchange="onKindChange(${sub.id})">${kindOptions}</select>
+                        </div>
+                        <div class="field">
+                            <label for="weightInp-${sub.id}">Faktor</label>
+                            <input type="number" id="weightInp-${sub.id}" step="0.5" min="0.5" value="${defW}">
+                        </div>
+                        <button type="button" class="btn btn-primary add-btn" onclick="addGradeToSubject(${sub.id})" aria-label="Note zu ${esc(sub.name)} eintragen">Eintragen</button>
+                    </div>
+
+                    <details class="panel subject-settings" ${openWeightPanels.has(sub.id) ? "open" : ""} ontoggle="rememberPanel(${sub.id}, this)">
+                        <summary>Einstellungen</summary>
+                        <div class="panel-body">
+                            <div class="setting-row">
                                 <label class="checkbox-row">
                                     <input type="checkbox" ${sub.notAdvancement ? "checked" : ""} onchange="toggleSubjectNotAdv(${sub.id})">
                                     <span>Kein Vorrückungsfach</span>
                                 </label>
-                                ${sub.type === "haupt" ? `
-                                    <select style="width:auto; padding:3px 7px; font-size:0.78rem;" onchange="updateSubjectRatio(${sub.id}, this.value)">
-                                        <option value="2:1" ${sub.ratio === "2:1" ? "selected" : ""}>2:1</option>
-                                        <option value="1:1" ${sub.ratio === "1:1" ? "selected" : ""}>1:1</option>
+                            </div>
+                            ${sub.type === "haupt" ? `
+                                <div class="setting-row">
+                                    <label for="ratio-${sub.id}">Verhältnis Schulaufgabe : kleiner LN</label>
+                                    <select id="ratio-${sub.id}" onchange="updateSubjectRatio(${sub.id}, this.value)">
+                                        <option value="2:1" ${sub.ratio === "2:1" ? "selected" : ""}>2 : 1</option>
+                                        <option value="1:1" ${sub.ratio === "1:1" ? "selected" : ""}>1 : 1</option>
                                     </select>
-                                ` : ""}
-                                <button type="button" class="btn btn-sm btn-danger" onclick="deleteSubject(${sub.id})">Löschen</button>
-                            </div>
+                                </div>` : ""}
+                            ${n ? `
+                                <div class="setting-row">
+                                    <span class="setting-label">Faktoren der Noten</span>
+                                    <div class="table-wrap">
+                                        <table>
+                                            <thead><tr><th>Note</th><th>Art</th><th>Faktor</th></tr></thead>
+                                            <tbody>${weightRows}</tbody>
+                                        </table>
+                                    </div>
+                                </div>` : ""}
+                            <button type="button" class="btn btn-danger btn-block" onclick="deleteSubject(${sub.id})">Fach löschen</button>
                         </div>
-                        <div class="subject-avg-num">${avg !== null ? fmt(avg, 2) : "–"}</div>
-                    </div>
-
-                    <div class="form-grid-4" style="margin-top:8px; margin-bottom:4px;">
-                        <div>
-                            <label for="gradeInp-${sub.id}">Note</label>
-                            <input type="text" id="gradeInp-${sub.id}" placeholder="z.B. 2, 2+, 3-" inputmode="text" autocomplete="off" autocapitalize="off" enterkeyhint="done" onkeydown="if(event.key==='Enter')addGradeToSubject(${sub.id})">
-                        </div>
-                        <div>
-                            <label for="kindSel-${sub.id}">Art</label>
-                            <select id="kindSel-${sub.id}" onchange="onKindChange(${sub.id})">${kindOptions}</select>
-                        </div>
-                        <div>
-                            <label for="weightInp-${sub.id}">Faktor</label>
-                            <input type="number" id="weightInp-${sub.id}" step="0.5" min="0.5" value="${defW}">
-                        </div>
-                        <div>
-                            <button type="button" class="btn btn-primary" style="width:100%;" onclick="addGradeToSubject(${sub.id})">Eintragen</button>
-                        </div>
-                    </div>
-
-                    <div class="grade-chips">${pillsHtml}</div>
-
-                    ${sub.grades.length > 0 ? `
-                        <details class="sub-panel" ${openWeightPanels.has(sub.id) ? "open" : ""} ontoggle="rememberPanel(${sub.id}, this)">
-                            <summary><span>Gewichtung anpassen</span></summary>
-                            <div class="sub-panel-body">
-                                <div class="table-wrap">
-                                    <table>
-                                        <thead><tr><th>Note</th><th>Art</th><th>Faktor</th></tr></thead>
-                                        <tbody>${weightRows}</tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </details>
-                    ` : ""}
-                </div>
-            `;
+                    </details>
+                </article>`;
         }).join("");
     }
 
@@ -618,6 +675,8 @@ function renderSubjects() {
         advEl.textContent = "–";
         advMeta.textContent = "Keine Fächer";
     }
+
+    renderPresets();
 }
 
 // --- VERTEILUNG ---
@@ -910,7 +969,8 @@ function runDistribution() {
         return;
     }
 
-    const rowsHtml = filtered.slice(0, 10).map(({ it, idx }, r) => {
+    const topP = (wArr[filtered[0].idx] / sumExp) * 100;
+    const cardsHtml = filtered.slice(0, 10).map(({ it, idx }, r) => {
         const p = (wArr[idx] / sumExp) * 100;
         const seq = [];
         for (let g = 0; g < 6; g++) {
@@ -919,26 +979,35 @@ function runDistribution() {
             for (let k = 0; k < kC; k++) seq.push(`<span class="g-known">${g + 1}</span>`);
             for (let e = 0; e < eC; e++) seq.push(`<span class="g-est">${g + 1}</span>`);
         }
+        const maxC = Math.max(...it.counts, 1);
         return `
-            <tr>
-                <td>${r + 1}.</td>
-                ${it.counts.map(c => `<td><strong>${c}</strong></td>`).join("")}
-                <td class="seq-cell">${seq.join("")}</td>
-                <td>${fmt(it.avg)}</td>
-                <td>±${fmt(it.std)}</td>
-                <td><strong>${fmt(p, 1)} %</strong></td>
-            </tr>
-        `;
+            <li class="dist-card">
+                <div class="dist-head">
+                    <span class="dist-rank">${r + 1}</span>
+                    <div class="dist-meta">
+                        <strong>${fmt(p, 1)} %</strong>
+                        <span>Ø ${fmt(it.avg)} · Streuung ±${fmt(it.std)}</span>
+                    </div>
+                </div>
+                <div class="dist-bar" aria-hidden="true"><span style="width:${Math.max(2, Math.min(100, (p / topP) * 100)).toFixed(1)}%"></span></div>
+                <div class="dist-counts">
+                    ${it.counts.map((c, g) => `
+                        <div class="dist-count${c === 0 ? " zero" : ""}">
+                            <span class="dist-note"><span class="sr-only">Note </span>${g + 1}</span>
+                            <strong>${c}×</strong>
+                            <i style="width:${Math.round((c / maxC) * 100)}%"></i>
+                        </div>`).join("")}
+                </div>
+                <div class="seq-line">${seq.join("")}</div>
+            </li>`;
     }).join("");
 
     out.innerHTML = `
-        <div class="info-box">${filtered.length.toLocaleString("de-DE")} Treffer${truncated ? " (Suche bei 120.000 Kandidaten abgebrochen, Ergebnis unvollständig)" : ""}</div>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>#</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>Noten</th><th>Ø</th><th>Streuung</th><th>Anteil</th></tr></thead>
-                <tbody>${rowsHtml}</tbody>
-            </table>
-        </div>
+        <p class="result-summary">
+            ${filtered.length.toLocaleString("de-DE")} Treffer${truncated ? " (Suche bei 120.000 Kandidaten abgebrochen, Ergebnis unvollständig)" : ""} · die 10 wahrscheinlichsten
+            <span class="legend"><span class="g-known">1</span> = bekannte Note</span>
+        </p>
+        <ol class="dist-list">${cardsHtml}</ol>
     `;
 }
 
@@ -1035,10 +1104,18 @@ function renderKeyTable() {
         hitIdx = keyRows.findIndex(r => gotP >= r.pts - 1e-9);
         if (hitIdx === -1) hitIdx = 5;
         const pct = (gotP / maxP) * 100;
-        const nextText = hitIdx > 0
-            ? ` · ${fmt(Math.max(0, roundHalf(keyRows[hitIdx - 1].pts - gotP)), 1)} Pkt. bis Note ${keyRows[hitIdx - 1].grade}`
-            : "";
-        sumEl.innerHTML = `<div class="info-box" style="font-weight:600;">${fmt(gotP, 1)} / ${fmt(maxP, 1)} Pkt. (${fmt(pct, 1)} %) → Note ${keyRows[hitIdx].grade}${nextText}</div>`;
+        const nextLine = hitIdx > 0
+            ? `Noch ${fmt(Math.max(0, roundHalf(keyRows[hitIdx - 1].pts - gotP)), 1)} Pkt. bis Note ${keyRows[hitIdx - 1].grade}`
+            : "Beste Note erreicht";
+        sumEl.innerHTML = `
+            <div class="key-result">
+                <div class="key-grade" aria-hidden="true">${keyRows[hitIdx].grade}</div>
+                <div>
+                    <strong>Note ${keyRows[hitIdx].grade}</strong>
+                    <div class="hint">${fmt(gotP, 1)} / ${fmt(maxP, 1)} Pkt. (${fmt(pct, 1)} %)</div>
+                    <div class="hint">${nextLine}</div>
+                </div>
+            </div>`;
     } else {
         sumEl.innerHTML = "";
     }
@@ -1048,7 +1125,7 @@ function renderKeyTable() {
             <td><strong>Note ${r.grade}</strong></td>
             <td><input type="number" class="inline-num" aria-label="Prozent ab Note ${r.grade}" step="0.5" min="0" max="100" value="${r.pct.toFixed(1)}" onchange="editKeyPct(${i}, this.value)"> %</td>
             <td><input type="number" class="inline-num" aria-label="Punkte ab Note ${r.grade}" step="0.5" min="0" max="${maxP}" value="${r.pts.toFixed(1)}" onchange="editKeyPts(${i}, this.value)"> Pkt.</td>
-            <td><button type="button" class="btn btn-sm" onclick="toggleKeyLock(${i})">${r.locked ? "Fix" : "Auto"}</button></td>
+            <td><button type="button" class="btn btn-sm" aria-pressed="${r.locked}" aria-label="Grenze für Note ${r.grade} fixieren" onclick="toggleKeyLock(${i})">${r.locked ? "Fix" : "Auto"}</button></td>
         </tr>
     `).join("");
 }
@@ -1125,6 +1202,7 @@ function saveFullSnapshot() {
     inp.value = "";
     setArchive(list.slice(0, 25));
     renderArchive();
+    toast("Stand gespeichert");
 }
 
 function loadSnapshot(id) {
@@ -1153,6 +1231,7 @@ function loadSnapshot(id) {
         renderKeyTable();
     }
     switchTab("subjects");
+    toast("Stand geladen");
 }
 
 function deleteSnapshot(id) {
@@ -1165,25 +1244,30 @@ function renderArchive() {
     const list = getArchive();
     const el = document.getElementById("archiveList");
     if (!list.length) {
-        el.innerHTML = `<div class="info-box">Noch nichts gespeichert.</div>`;
+        el.innerHTML = `<div class="empty-state"><p><strong>Noch nichts gespeichert</strong></p><p class="hint">Speichere oben den aktuellen Stand deiner Fächer.</p></div>`;
         return;
     }
-    el.innerHTML = list.map(item => `
-        <div class="archive-card">
-            <div>
-                <strong>${esc(item.title)}</strong>
-                <div class="hint">${(item.subjects || []).length} Fächer</div>
-            </div>
-            <div style="display:flex; gap:6px;">
-                <button type="button" class="btn btn-primary btn-sm" onclick="loadSnapshot(${item.id})">Laden</button>
-                <button type="button" class="btn btn-sm btn-danger" onclick="deleteSnapshot(${item.id})">Löschen</button>
-            </div>
-        </div>
-    `).join("");
+    el.innerHTML = list.map(item => {
+        const avgs = (item.subjects || []).map(s => calcSubjectAverage(s)).filter(a => a !== null);
+        const avg = avgs.length ? avgs.reduce((a, b) => a + b, 0) / avgs.length : null;
+        const date = new Date(item.id).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+        return `
+            <div class="archive-card">
+                <div class="archive-info">
+                    <strong>${esc(item.title)}</strong>
+                    <div class="hint">${date} · ${(item.subjects || []).length} Fächer${avg !== null ? " · Ø " + fmt(avg) : ""}</div>
+                </div>
+                <div class="archive-actions">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="loadSnapshot(${item.id})">Laden</button>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="deleteSnapshot(${item.id})">Löschen</button>
+                </div>
+            </div>`;
+    }).join("");
 }
 
 // --- START ---
 initTheme();
+toggleNewSubDefaults();
 renderPresets();
 loadSubjects();
 renderSubjects();
