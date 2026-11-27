@@ -1,63 +1,204 @@
+const SUPABASE_URL = "https://bermpuavrkricfngfgjk.supabase.co/";
+const SUPABASE_ANON_KEY = "sb_publishable_MDzS9aGj4E7QEFemXZZLDA_-7YkPC2z";
+
+const sbClient = (typeof supabase !== "undefined" && SUPABASE_URL.startsWith("http"))
+    ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+            persistSession: true,
+            autoRefreshToken: true
+        }
+    })
+    : null;
+
 const STORAGE_KEYS = {
-    subjects: "notenapp_subjects_v2",
-    archive: "notenapp_archive_v2",
-    theme: "notenapp_theme_v2"
+    subjects: "notenapp_subjects_v3",
+    archive: "notenapp_archive_v3",
+    theme: "notenapp_theme_v3",
+    localUser: "notenapp_local_user_v3"
 };
 
 const SUBJECT_PRESETS = [
-    {
-        name: "Mathematik",
-        type: "haupt",
-        ratio: "2:1",
-        notAdvancement: false,
-        ratioLabel: "Hauptfach · SA:Klein 2:1",
-        icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h2m4 0h2M8 16h2m4 0h2"/></svg>`
-    },
-    {
-        name: "Deutsch",
-        type: "haupt",
-        ratio: "1:1",
-        notAdvancement: false,
-        ratioLabel: "Hauptfach · SA:Klein 1:1",
-        icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`
-    },
-    {
-        name: "Englisch",
-        type: "haupt",
-        ratio: "1:1",
-        notAdvancement: false,
-        ratioLabel: "Hauptfach · SA:Klein 1:1",
-        icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>`
-    },
-    {
-        name: "Biologie",
-        type: "neben",
-        ratio: "1:1",
-        notAdvancement: false,
-        ratioLabel: "Nebenfach · Groß ×2 / Klein ×1",
-        icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22V8"/><path d="M5 12c0-4 3-7 7-7 4 0 7 3 7 7-3 0-5-1-7-3-2 2-4 3-7 3z"/></svg>`
-    },
-    {
-        name: "Geschichte",
-        type: "neben",
-        ratio: "1:1",
-        notAdvancement: false,
-        ratioLabel: "Nebenfach · Groß ×2 / Klein ×1",
-        icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`
-    },
-    {
-        name: "Sport",
-        type: "neben",
-        ratio: "1:1",
-        notAdvancement: true,
-        ratioLabel: "Nebenfach · Kein Vorrückungsfach",
-        icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></svg>`
-    }
+    { name: "Religion", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "R" },
+    { name: "Deutsch", type: "haupt", ratio: "2:1", notAdvancement: false, ratioLabel: "Hauptfach · 2:1", icon: "D" },
+    { name: "Englisch", type: "haupt", ratio: "2:1", notAdvancement: false, ratioLabel: "Hauptfach · 2:1", icon: "E" },
+    { name: "Französisch", type: "haupt", ratio: "2:1", notAdvancement: false, ratioLabel: "Hauptfach · 2:1", icon: "F" },
+    { name: "Mathe", type: "haupt", ratio: "2:1", notAdvancement: false, ratioLabel: "Hauptfach · 2:1", icon: "M" },
+    { name: "Informatik", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "I" },
+    { name: "Physik", type: "haupt", ratio: "1:1", notAdvancement: false, ratioLabel: "Hauptfach · 1:1", icon: "P" },
+    { name: "Chemie", type: "haupt", ratio: "1:1", notAdvancement: false, ratioLabel: "Hauptfach · 1:1", icon: "C" },
+    { name: "Biologie", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "B" },
+    { name: "Geschichte", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "G" },
+    { name: "Geographie", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "Geo" },
+    { name: "Wirtschaft und Recht", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "WR" },
+    { name: "Politik und Gesellschaft", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "PG" },
+    { name: "Kunst", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "K" },
+    { name: "Musik", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "Mu" },
+    { name: "Sport", type: "neben", ratio: "1:1", notAdvancement: true, ratioLabel: "Nebenfach · Kein Vorrückungsfach", icon: "S" }
 ];
 
 let subjects = [];
+let currentUser = null;
 let deferredInstallPrompt = null;
 
+function toTechnicalEmail(username) {
+    const clean = String(username || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9._-]/g, "_");
+    return `${clean || "nutzer"}@notenapp.local`;
+}
+
+function extractUsernameFromEmail(email) {
+    if (!email) return "Konto";
+    return email.split("@")[0];
+}
+
+function showApp(userLabel) {
+    document.getElementById("authScreen").style.display = "none";
+    document.getElementById("appShell").style.display = "flex";
+    document.getElementById("userBadge").textContent = `Konto: ${userLabel}`;
+    switchTab("subjects");
+}
+
+function showAuth() {
+    document.getElementById("appShell").style.display = "none";
+    document.getElementById("authScreen").style.display = "flex";
+}
+
+async function initAuthAndData() {
+    if (sbClient) {
+        const { data } = await sbClient.auth.getSession();
+        if (data && data.session && data.session.user) {
+            currentUser = data.session.user;
+            showApp(extractUsernameFromEmail(currentUser.email));
+            await pullCloudState();
+            return;
+        }
+        sbClient.auth.onAuthStateChange(async (_event, session) => {
+            if (session && session.user) {
+                currentUser = session.user;
+                showApp(extractUsernameFromEmail(currentUser.email));
+                await pullCloudState();
+            } else {
+                currentUser = null;
+                showAuth();
+            }
+        });
+        showAuth();
+        return;
+    }
+
+    const localUser = localStorage.getItem(STORAGE_KEYS.localUser);
+    if (localUser) {
+        currentUser = { username: localUser };
+        showApp(localUser);
+    } else {
+        showAuth();
+    }
+}
+
+async function handleAuthSubmit(event) {
+    event.preventDefault();
+    const userInp = document.getElementById("authUsername");
+    const passInp = document.getElementById("authPassword");
+    const statusEl = document.getElementById("authStatus");
+    const btn = document.getElementById("authSubmitBtn");
+
+    const username = userInp.value.trim();
+    const password = passInp.value;
+    if (!username || !password) return;
+
+    btn.disabled = true;
+    statusEl.textContent = "";
+
+    const email = toTechnicalEmail(username);
+
+    if (sbClient) {
+        const signInRes = await sbClient.auth.signInWithPassword({ email, password });
+        if (!signInRes.error && signInRes.data.user) {
+            currentUser = signInRes.data.user;
+            showApp(username);
+            await pullCloudState();
+            btn.disabled = false;
+            return;
+        }
+
+        const signUpRes = await sbClient.auth.signUp({ email, password });
+        if (!signUpRes.error && signUpRes.data.user) {
+            currentUser = signUpRes.data.user;
+            showApp(username);
+            await pushCloudState();
+            btn.disabled = false;
+            return;
+        }
+
+        statusEl.textContent = "Anmeldung fehlgeschlagen. Prüfe Benutzername und Passwort.";
+        btn.disabled = false;
+        return;
+    }
+
+    localStorage.setItem(STORAGE_KEYS.localUser, username);
+    currentUser = { username };
+    showApp(username);
+    btn.disabled = false;
+}
+
+async function handleLogout() {
+    if (sbClient) {
+        await sbClient.auth.signOut();
+    } else {
+        localStorage.removeItem(STORAGE_KEYS.localUser);
+    }
+    currentUser = null;
+    showAuth();
+}
+
+async function pushCloudState() {
+    localStorage.setItem(STORAGE_KEYS.subjects, JSON.stringify(subjects));
+    if (!sbClient || !currentUser || !currentUser.id) return;
+
+    const payload = {
+        user_id: currentUser.id,
+        subjects,
+        archive: getArchive(),
+        updated_at: new Date().toISOString()
+    };
+
+    await sbClient
+        .from("user_noten_daten")
+        .upsert(payload, { onConflict: "user_id" })
+        .catch(() => {});
+}
+
+async function pullCloudState() {
+    loadSubjects();
+    renderSubjects();
+    renderArchive();
+
+    if (!sbClient || !currentUser || !currentUser.id) return;
+
+    try {
+        const { data } = await sbClient
+            .from("user_noten_daten")
+            .select("subjects, archive")
+            .eq("user_id", currentUser.id)
+            .maybeSingle();
+
+        if (data) {
+            if (Array.isArray(data.subjects)) {
+                subjects = data.subjects;
+                localStorage.setItem(STORAGE_KEYS.subjects, JSON.stringify(subjects));
+                renderSubjects();
+            }
+            if (Array.isArray(data.archive)) {
+                localStorage.setItem(STORAGE_KEYS.archive, JSON.stringify(data.archive));
+                renderArchive();
+            }
+        }
+    } catch (_) {}
+}
+
+// --- THEME ---
 function initTheme() {
     const saved = localStorage.getItem(STORAGE_KEYS.theme) || "auto";
     document.documentElement.setAttribute("data-theme", saved);
@@ -79,6 +220,7 @@ function updateThemeBtn(mode) {
     btn.textContent = mode === "dark" ? "Dunkel" : (mode === "light" ? "Hell" : "Auto");
 }
 
+// --- PWA INSTALL ---
 window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferredInstallPrompt = e;
@@ -99,6 +241,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
+// --- NAVIGATION ---
 function switchTab(tabName) {
     document.querySelectorAll(".tab-view").forEach(sec => sec.classList.remove("active"));
     document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
@@ -106,6 +249,7 @@ function switchTab(tabName) {
     document.querySelector(`.nav-btn[data-tab="${tabName}"]`)?.classList.add("active");
 }
 
+// --- HILFSFUNKTIONEN ---
 function esc(s) {
     return String(s ?? "")
         .replace(/&/g, "&amp;")
@@ -145,7 +289,7 @@ function parseStrictDigits1to6(raw) {
 }
 
 function saveSubjects() {
-    localStorage.setItem(STORAGE_KEYS.subjects, JSON.stringify(subjects));
+    pushCloudState();
 }
 
 function loadSubjects() {
@@ -153,13 +297,14 @@ function loadSubjects() {
     catch { subjects = []; }
 }
 
+// --- VORLAGEN & FÄCHER ---
 function renderPresets() {
     const grid = document.getElementById("presetSubjectsGrid");
     if (!grid) return;
     grid.innerHTML = SUBJECT_PRESETS.map((p, idx) => `
         <button type="button" class="preset-card" onclick="addFromPreset(${idx})">
             <div class="preset-left">
-                <span class="preset-icon">${p.icon}</span>
+                <span class="preset-icon">${esc(p.icon)}</span>
                 <div style="min-width:0;">
                     <div class="preset-title">${esc(p.name)}</div>
                     <div class="preset-ratio">${esc(p.ratioLabel)}</div>
@@ -317,7 +462,7 @@ function renderSubjects() {
     const advAvgs = [];
 
     if (!subjects.length) {
-        container.innerHTML = `<div class="info-box">Wähle oben eine Vorlage oder lege ein Fach an.</div>`;
+        container.innerHTML = `<div class="info-box">Vorlage wählen oder eigenes Fach anlegen.</div>`;
     } else {
         container.innerHTML = subjects.map(sub => {
             const avg = calcSubjectAverage(sub);
@@ -367,8 +512,8 @@ function renderSubjects() {
                                 </label>
                                 ${sub.type === "haupt" ? `
                                     <select style="width:auto; padding:3px 7px; font-size:0.78rem;" onchange="updateSubjectRatio(${sub.id}, this.value)">
-                                        <option value="2:1" ${sub.ratio === "2:1" ? "selected" : ""}>2 : 1</option>
-                                        <option value="1:1" ${sub.ratio === "1:1" ? "selected" : ""}>1 : 1</option>
+                                        <option value="2:1" ${sub.ratio === "2:1" ? "selected" : ""}>2:1</option>
+                                        <option value="1:1" ${sub.ratio === "1:1" ? "selected" : ""}>1:1</option>
                                     </select>
                                 ` : ""}
                                 <button type="button" class="btn btn-sm btn-danger" onclick="deleteSubject(${sub.id})">Löschen</button>
@@ -934,6 +1079,7 @@ function saveFullSnapshot() {
     localStorage.setItem(STORAGE_KEYS.archive, JSON.stringify(list.slice(0, 25)));
     inp.value = "";
     renderArchive();
+    pushCloudState();
 }
 
 function loadSnapshot(id) {
@@ -967,6 +1113,7 @@ function deleteSnapshot(id) {
     const next = getArchive().filter(x => x.id !== id);
     localStorage.setItem(STORAGE_KEYS.archive, JSON.stringify(next));
     renderArchive();
+    pushCloudState();
 }
 
 function renderArchive() {
@@ -990,6 +1137,7 @@ function renderArchive() {
     `).join("");
 }
 
+// --- START ---
 initTheme();
 renderPresets();
 loadSubjects();
@@ -999,3 +1147,4 @@ runDistribution();
 renderKeyTable();
 updateComparison();
 renderArchive();
+initAuthAndData();
