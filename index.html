@@ -4,24 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>NotenApp</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-<div class="app-shell">
+<!-- LOGIN / KONTO-ANSICHT (NUR BENUTZERNAME + PASSWORT) -->
+<div id="authScreen" class="auth-screen">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1 class="app-title">NotenApp</h1>
+            <p class="app-sub">Konto mit Benutzername &amp; Passwort</p>
+        </div>
+        <form id="authForm" onsubmit="handleAuthSubmit(event)">
+            <div class="auth-field">
+                <label for="authUsername">Benutzername</label>
+                <input type="text" id="authUsername" autocomplete="username" required placeholder="dein_name">
+            </div>
+            <div class="auth-field">
+                <label for="authPassword">Passwort</label>
+                <input type="password" id="authPassword" autocomplete="current-password" required placeholder="Passwort">
+            </div>
+            <button type="submit" class="btn btn-primary auth-submit" id="authSubmitBtn">Weiter</button>
+            <div id="authStatus" class="hint" style="margin-top:8px;"></div>
+        </form>
+    </div>
+</div>
+
+<!-- HAUPT-APP -->
+<div id="appShell" class="app-shell" style="display:none;">
     <header class="topbar">
         <div>
             <h1 class="app-title">NotenApp</h1>
-            <p class="app-sub">Fächer, Schnitte &amp; Analyse</p>
+            <p class="app-sub" id="userBadge">Angemeldet</p>
         </div>
         <div class="topbar-actions">
-            <button type="button" class="chip-btn" id="installBtn" style="display:none;">App laden</button>
+            <button type="button" class="chip-btn" id="installBtn" style="display:none;">Installieren</button>
             <button type="button" class="chip-btn" onclick="cycleTheme()" id="themeBtn">Auto</button>
+            <button type="button" class="chip-btn" onclick="handleLogout()">Abmelden</button>
         </div>
     </header>
 
@@ -55,7 +82,7 @@
                     <div class="form-grid-4">
                         <div>
                             <label for="newSubName">Fach</label>
-                            <input type="text" id="newSubName" placeholder="z.B. Physik">
+                            <input type="text" id="newSubName" placeholder="z.B. Informatik">
                         </div>
                         <div>
                             <label for="newSubType">Art</label>
