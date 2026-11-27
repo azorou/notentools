@@ -1,4 +1,4 @@
-const CACHE_NAME = "notenapp-v1";
+const CACHE_NAME = "notenapp-v3";
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.json"];
 
 self.addEventListener("install", (event) => {
