@@ -305,10 +305,16 @@
                     </select>
                 </div>
             </div>
-            <label class="checkbox-row" style="margin-bottom:12px;">
-                <input type="checkbox" id="newSubNotAdv">
-                <span>Kein Vorrückungsfach</span>
-            </label>
+            <div class="check-stack">
+                <label class="checkbox-row">
+                    <input type="checkbox" id="newSubNotAdv">
+                    <span>Kein Vorrückungsfach</span>
+                </label>
+                <label class="checkbox-row">
+                    <input type="checkbox" id="newSubSingle">
+                    <span>Nur eine Notenart (keine Unterteilung)</span>
+                </label>
+            </div>
             <button type="submit" class="btn btn-primary btn-block">Fach anlegen</button>
         </form>
     </div>
@@ -342,6 +348,23 @@
         </div>
 
         <button type="button" class="btn btn-danger btn-block" onclick="handleLogout()">Abmelden</button>
+    </div>
+</dialog>
+
+<!-- DIALOG: FACH AKTUALISIEREN -->
+<dialog id="updateDialog" class="sheet" aria-labelledby="updateTitle">
+    <div class="sheet-body">
+        <div class="sheet-head">
+            <h2 id="updateTitle">Fach aktualisieren</h2>
+            <button type="button" class="icon-btn" onclick="closeDialog('updateDialog')" aria-label="Schließen">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+        </div>
+        <div id="updateBody"></div>
+        <div class="sheet-actions">
+            <button type="button" class="btn" onclick="closeDialog('updateDialog')">Abbrechen</button>
+            <button type="button" class="btn btn-primary" id="updateConfirmBtn" onclick="applyPresetUpdate()">Aktualisieren</button>
+        </div>
     </div>
 </dialog>
 
