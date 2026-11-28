@@ -51,6 +51,13 @@ let subjects = [];
 let currentUser = null;
 let deferredInstallPrompt = null;
 
+const SORT_KEY = "notenapp_sort_v1";
+const SORT_MODES = ["manual", "name", "best", "worst", "haupt"];
+let subjectSort = localStorage.getItem(SORT_KEY);
+if (!SORT_MODES.includes(subjectSort)) subjectSort = "manual";
+const openSubjects = new Set();   // aufgeklappte Fächer
+const lastKind = new Map();       // zuletzt gewählte Art je Fach
+
 function toTechnicalEmail(username) {
     const clean = String(username || "")
         .trim()
@@ -129,6 +136,8 @@ async function handleSession(session) {
         currentUser = null;
         setStorageScope(null);
         subjects = [];
+        openSubjects.clear();
+        lastKind.clear();
         renderSubjects();
         renderArchive();
         showAuth();
@@ -174,6 +183,13 @@ function pushCloudState() {
     syncTimer = setTimeout(flushCloudState, 800);
 }
 
+let syncErrorShown = false;
+function notifySyncError() {
+    if (syncErrorShown) return;
+    syncErrorShown = true;
+    toast("Synchronisierung fehlgeschlagen");
+}
+
 async function flushCloudState() {
     clearTimeout(syncTimer);
     if (!sbClient || !currentUser || !currentUser.id) return;
@@ -184,7 +200,8 @@ async function flushCloudState() {
             archive: getArchive(),
             updated_at: new Date().toISOString()
         }, { onConflict: "user_id" });
-        if (error) console.warn("Cloud-Sync fehlgeschlagen:", error.message);
+        if (error) { console.warn("Cloud-Sync fehlgeschlagen:", error.message); notifySyncError(); }
+        else syncErrorShown = false;
     } catch (e) { console.warn("Cloud-Sync offline:", e); }
 }
 
@@ -211,7 +228,7 @@ async function pullCloudState() {
             return;
         }
         if (Array.isArray(data.subjects)) {
-            subjects = data.subjects;
+            subjects = normalizeSubjects(data.subjects);
             localStorage.setItem(skey("subjects"), JSON.stringify(subjects));
         }
         if (Array.isArray(data.archive)) localStorage.setItem(skey("archive"), JSON.stringify(data.archive));
@@ -244,6 +261,10 @@ function updateThemeBtn(mode) {
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", dark ? "#111827" : "#ffffff");
 }
+
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    updateThemeBtn(localStorage.getItem(STORAGE_KEYS.theme) || "auto");
+});
 
 // --- PWA INSTALL ---
 window.addEventListener("beforeinstallprompt", (e) => {
@@ -312,6 +333,9 @@ function toast(msg) {
     toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
 }
 
+window.addEventListener("offline", () => toast("Offline – Änderungen werden lokal gespeichert"));
+window.addEventListener("online", () => toast("Wieder online"));
+
 // --- HILFSFUNKTIONEN ---
 function esc(s) {
     return String(s ?? "")
@@ -356,8 +380,34 @@ function saveSubjects() {
     pushCloudState();
 }
 
+// Schützt die App vor kaputten oder fremden Daten (Cloud, Verlauf, localStorage)
+function normalizeSubjects(list) {
+    if (!Array.isArray(list)) return [];
+    return list.filter(s => s && typeof s === "object").map(s => {
+        const type = s.type === "neben" ? "neben" : "haupt";
+        const kinds = type === "haupt" ? ["sa", "klein"] : ["gross", "klein"];
+        return {
+            id: s.id ?? uid(),
+            name: String(s.name ?? "Fach"),
+            type,
+            ratio: s.ratio === "2:1" ? "2:1" : "1:1",
+            notAdvancement: !!s.notAdvancement,
+            grades: (Array.isArray(s.grades) ? s.grades : [])
+                .filter(g => g && Number.isInteger(g.base) && g.base >= 1 && g.base <= 6)
+                .map(g => ({
+                    id: g.id ?? uid(),
+                    base: g.base,
+                    sign: g.sign === "+" || g.sign === "-" ? g.sign : "",
+                    label: String(g.label ?? g.base),
+                    kind: kinds.includes(g.kind) ? g.kind : kinds[0],
+                    weight: Number(g.weight) > 0 ? Number(g.weight) : 1
+                }))
+        };
+    });
+}
+
 function loadSubjects() {
-    try { subjects = JSON.parse(localStorage.getItem(skey("subjects"))) || []; }
+    try { subjects = normalizeSubjects(JSON.parse(localStorage.getItem(skey("subjects")))); }
     catch { subjects = []; }
 }
 
@@ -412,14 +462,16 @@ function addSubject() {
     const ratio = document.getElementById("newSubRatio").value;
     const notAdv = document.getElementById("newSubNotAdv").checked;
 
-    subjects.push({
+    const newSub = {
         id: uid(),
         name,
         type,
         ratio: type === "haupt" ? ratio : "1:1",
         notAdvancement: notAdv,
         grades: []
-    });
+    };
+    subjects.push(newSub);
+    openSubjects.add(newSub.id);
 
     nameInput.value = "";
     document.getElementById("newSubNotAdv").checked = false;
@@ -431,6 +483,8 @@ function addSubject() {
 
 function deleteSubject(subId) {
     if (!confirm("Fach samt allen Noten löschen?")) return;
+    openSubjects.delete(subId);
+    lastKind.delete(subId);
     subjects = subjects.filter(s => s.id !== subId);
     saveSubjects();
     renderSubjects();
@@ -460,8 +514,9 @@ function defaultWeight(sub, kind) {
 function onKindChange(subId) {
     const sub = subjects.find(s => s.id === subId);
     if (!sub) return;
-    document.getElementById(`weightInp-${subId}`).value =
-        defaultWeight(sub, document.getElementById(`kindSel-${subId}`).value);
+    const kind = document.getElementById(`kindSel-${subId}`).value;
+    lastKind.set(subId, kind);
+    document.getElementById(`weightInp-${subId}`).value = defaultWeight(sub, kind);
 }
 
 function addGradeToSubject(subId) {
@@ -490,8 +545,11 @@ function addGradeToSubject(subId) {
     });
 
     gInput.value = "";
+    lastKind.set(subId, kind);
+    openSubjects.add(subId);
     saveSubjects();
     renderSubjects();
+    document.getElementById(`gradeInp-${subId}`)?.focus();   // direkt die nächste Note eintippen
 }
 
 function updateGradeWeight(subId, gradeId, rawW) {
@@ -543,10 +601,71 @@ function calcSubjectAverage(sub) {
 const openWeightPanels = new Set();
 function rememberPanel(subId, el) { el.open ? openWeightPanels.add(subId) : openWeightPanels.delete(subId); }
 
+function setSubjectSort(value) {
+    subjectSort = SORT_MODES.includes(value) ? value : "manual";
+    localStorage.setItem(SORT_KEY, subjectSort);
+    renderSubjects();
+}
+
+function getSortedSubjects() {
+    const list = subjects.map((s, i) => ({ s, i, avg: calcSubjectAverage(s) }));
+    const byAvg = (dir) => (a, b) => {
+        if (a.avg === null && b.avg === null) return a.i - b.i;
+        if (a.avg === null) return 1;
+        if (b.avg === null) return -1;
+        return dir * (a.avg - b.avg) || a.i - b.i;
+    };
+    if (subjectSort === "name") list.sort((a, b) => a.s.name.localeCompare(b.s.name, "de") || a.i - b.i);
+    else if (subjectSort === "best") list.sort(byAvg(1));
+    else if (subjectSort === "worst") list.sort(byAvg(-1));
+    else if (subjectSort === "haupt") list.sort((a, b) => (a.s.type === "haupt" ? 0 : 1) - (b.s.type === "haupt" ? 0 : 1) || a.i - b.i);
+    return list;
+}
+
+function moveSubject(subId, dir) {
+    const i = subjects.findIndex(s => s.id === subId);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= subjects.length) return;
+    [subjects[i], subjects[j]] = [subjects[j], subjects[i]];
+    saveSubjects();
+    renderSubjects();
+    document.getElementById(`subj-${subId}`)?.scrollIntoView({ block: "nearest" });
+}
+
+function toggleSubject(subId) {
+    const card = document.getElementById(`subj-${subId}`);
+    if (!card) return;
+    const open = !openSubjects.has(subId);
+    if (open) openSubjects.add(subId); else openSubjects.delete(subId);
+    card.classList.toggle("is-open", open);
+    card.querySelector(".subject-toggle").setAttribute("aria-expanded", open ? "true" : "false");
+    card.querySelector(".subject-body").hidden = !open;
+    updateToggleAllBtn();
+}
+
+function toggleAllSubjects() {
+    const allOpen = subjects.length > 0 && subjects.every(s => openSubjects.has(s.id));
+    openSubjects.clear();
+    if (!allOpen) subjects.forEach(s => openSubjects.add(s.id));
+    renderSubjects();
+}
+
+function updateToggleAllBtn() {
+    const btn = document.getElementById("toggleAllBtn");
+    if (!btn) return;
+    const allOpen = subjects.length > 0 && subjects.every(s => openSubjects.has(s.id));
+    btn.textContent = allOpen ? "Alle zuklappen" : "Alle aufklappen";
+}
+
 function renderSubjects() {
     const container = document.getElementById("subjectsContainer");
     const allAvgs = [];
     const advAvgs = [];
+
+    const toolbar = document.getElementById("subjectToolbar");
+    if (toolbar) toolbar.hidden = subjects.length === 0;
+    const sortSel = document.getElementById("subjectSort");
+    if (sortSel) sortSel.value = subjectSort;
 
     if (!subjects.length) {
         container.innerHTML = `
@@ -556,19 +675,21 @@ function renderSubjects() {
                 <button type="button" class="btn btn-primary" onclick="openDialog('addSubjectDialog')">Fach hinzufügen</button>
             </div>`;
     } else {
-        container.innerHTML = subjects.map(sub => {
-            const avg = calcSubjectAverage(sub);
+        container.innerHTML = getSortedSubjects().map(({ s: sub, i: pos, avg }) => {
             if (avg !== null) {
                 allAvgs.push(avg);
                 if (!sub.notAdvancement) advAvgs.push(avg);
             }
 
-            const kindOptions = sub.type === "haupt"
-                ? `<option value="sa">Schulaufgabe</option><option value="klein">Kleiner LN</option>`
-                : `<option value="gross">Großer LN</option><option value="klein">Kleiner LN</option>`;
-
-            const defW = defaultWeight(sub, sub.type === "haupt" ? "sa" : "gross");
+            const isOpen = openSubjects.has(sub.id);
             const n = sub.grades.length;
+            const kinds = sub.type === "haupt"
+                ? [["sa", "Schulaufgabe"], ["klein", "Kleiner LN"]]
+                : [["gross", "Großer LN"], ["klein", "Kleiner LN"]];
+            const wanted = lastKind.get(sub.id);
+            const curKind = kinds.some(k => k[0] === wanted) ? wanted : kinds[0][0];
+            const kindOptions = kinds.map(([v, t]) => `<option value="${v}" ${v === curKind ? "selected" : ""}>${t}</option>`).join("");
+            const defW = defaultWeight(sub, curKind);
 
             const pillsHtml = sub.grades.map(g => {
                 const kTxt = g.kind === "sa" ? "SA" : (g.kind === "gross" ? "Groß" : "Klein");
@@ -587,70 +708,83 @@ function renderSubjects() {
                     <td><input type="number" class="inline-num" aria-label="Faktor für Note ${esc(g.label)}" step="0.5" min="0.5" value="${g.weight}" onchange="updateGradeWeight(${sub.id}, ${g.id}, this.value)"></td>
                 </tr>`).join("");
 
+            const subLine = [
+                sub.type === "haupt" ? `Hauptfach ${sub.ratio}` : "Nebenfach",
+                `${n} ${n === 1 ? "Note" : "Noten"}`,
+                sub.notAdvancement ? "nicht vorrückungsrelevant" : ""
+            ].filter(Boolean).join(" · ");
+
             return `
-                <article class="subject-card">
-                    <header class="subject-head">
-                        <div class="subject-info">
-                            <h3 class="subject-name">${esc(sub.name)}</h3>
-                            <div class="subject-tags">
-                                <span class="tag">${sub.type === "haupt" ? `Hauptfach · ${esc(sub.ratio)}` : "Nebenfach"}</span>
-                                ${sub.notAdvancement ? `<span class="tag muted-tag">Nicht vorrückungsrelevant</span>` : ""}
+                <article class="subject-card${isOpen ? " is-open" : ""}" id="subj-${sub.id}">
+                    <h3 class="subject-head">
+                        <button type="button" class="subject-toggle" aria-expanded="${isOpen}" aria-controls="subj-body-${sub.id}" onclick="toggleSubject(${sub.id})">
+                            <span class="subject-info">
+                                <span class="subject-name">${esc(sub.name)}</span>
+                                <span class="subject-sub">${esc(subLine)}</span>
+                            </span>
+                            <span class="subject-avg-num"><span class="sr-only">Schnitt </span>${avg !== null ? fmt(avg, 2) : "–"}</span>
+                            <span class="chevron" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+
+                    <div class="subject-body" id="subj-body-${sub.id}" ${isOpen ? "" : "hidden"}>
+                        ${n ? `<div class="grade-chips">${pillsHtml}</div>` : `<p class="hint empty-hint">Noch keine Noten eingetragen.</p>`}
+
+                        <div class="add-grade-row">
+                            <div class="field">
+                                <label for="gradeInp-${sub.id}">Note (1–6)</label>
+                                <input type="text" id="gradeInp-${sub.id}" inputmode="text" autocomplete="off" autocapitalize="off" enterkeyhint="done" onkeydown="if(event.key==='Enter')addGradeToSubject(${sub.id})">
                             </div>
+                            <div class="field">
+                                <label for="kindSel-${sub.id}">Art</label>
+                                <select id="kindSel-${sub.id}" onchange="onKindChange(${sub.id})">${kindOptions}</select>
+                            </div>
+                            <div class="field">
+                                <label for="weightInp-${sub.id}">Faktor</label>
+                                <input type="number" id="weightInp-${sub.id}" step="0.5" min="0.5" value="${defW}">
+                            </div>
+                            <button type="button" class="btn btn-primary add-btn" onclick="addGradeToSubject(${sub.id})" aria-label="Note zu ${esc(sub.name)} eintragen">Eintragen</button>
                         </div>
-                        <div class="subject-avg">
-                            <span class="subject-avg-num">${avg !== null ? fmt(avg, 2) : "–"}</span>
-                            <span class="subject-avg-label">${n} ${n === 1 ? "Note" : "Noten"}</span>
-                        </div>
-                    </header>
 
-                    ${n ? `<div class="grade-chips">${pillsHtml}</div>` : `<p class="hint empty-hint">Noch keine Noten eingetragen.</p>`}
-
-                    <div class="add-grade-row">
-                        <div class="field">
-                            <label for="gradeInp-${sub.id}">Note</label>
-                            <input type="text" id="gradeInp-${sub.id}" placeholder="2+" inputmode="text" autocomplete="off" autocapitalize="off" enterkeyhint="done" onkeydown="if(event.key==='Enter')addGradeToSubject(${sub.id})">
-                        </div>
-                        <div class="field">
-                            <label for="kindSel-${sub.id}">Art</label>
-                            <select id="kindSel-${sub.id}" onchange="onKindChange(${sub.id})">${kindOptions}</select>
-                        </div>
-                        <div class="field">
-                            <label for="weightInp-${sub.id}">Faktor</label>
-                            <input type="number" id="weightInp-${sub.id}" step="0.5" min="0.5" value="${defW}">
-                        </div>
-                        <button type="button" class="btn btn-primary add-btn" onclick="addGradeToSubject(${sub.id})" aria-label="Note zu ${esc(sub.name)} eintragen">Eintragen</button>
+                        <details class="panel subject-settings" ${openWeightPanels.has(sub.id) ? "open" : ""} ontoggle="rememberPanel(${sub.id}, this)">
+                            <summary>Einstellungen</summary>
+                            <div class="panel-body">
+                                <div class="setting-row">
+                                    <label class="checkbox-row">
+                                        <input type="checkbox" ${sub.notAdvancement ? "checked" : ""} onchange="toggleSubjectNotAdv(${sub.id})">
+                                        <span>Kein Vorrückungsfach</span>
+                                    </label>
+                                </div>
+                                ${sub.type === "haupt" ? `
+                                    <div class="setting-row">
+                                        <label for="ratio-${sub.id}">Verhältnis Schulaufgabe : kleiner LN</label>
+                                        <select id="ratio-${sub.id}" onchange="updateSubjectRatio(${sub.id}, this.value)">
+                                            <option value="2:1" ${sub.ratio === "2:1" ? "selected" : ""}>2 : 1</option>
+                                            <option value="1:1" ${sub.ratio === "1:1" ? "selected" : ""}>1 : 1</option>
+                                        </select>
+                                    </div>` : ""}
+                                ${n ? `
+                                    <div class="setting-row">
+                                        <span class="setting-label">Faktoren der Noten</span>
+                                        <div class="table-wrap">
+                                            <table>
+                                                <thead><tr><th>Note</th><th>Art</th><th>Faktor</th></tr></thead>
+                                                <tbody>${weightRows}</tbody>
+                                            </table>
+                                        </div>
+                                    </div>` : ""}
+                                ${subjectSort === "manual" && subjects.length > 1 ? `
+                                    <div class="setting-row">
+                                        <span class="setting-label">Reihenfolge</span>
+                                        <div class="toolbar" style="margin-bottom:0;">
+                                            <button type="button" class="btn btn-sm" ${pos > 0 ? "" : "disabled"} onclick="moveSubject(${sub.id}, -1)">↑ Nach oben</button>
+                                            <button type="button" class="btn btn-sm" ${pos < subjects.length - 1 ? "" : "disabled"} onclick="moveSubject(${sub.id}, 1)">↓ Nach unten</button>
+                                        </div>
+                                    </div>` : ""}
+                                <button type="button" class="btn btn-danger btn-block" onclick="deleteSubject(${sub.id})">Fach löschen</button>
+                            </div>
+                        </details>
                     </div>
-
-                    <details class="panel subject-settings" ${openWeightPanels.has(sub.id) ? "open" : ""} ontoggle="rememberPanel(${sub.id}, this)">
-                        <summary>Einstellungen</summary>
-                        <div class="panel-body">
-                            <div class="setting-row">
-                                <label class="checkbox-row">
-                                    <input type="checkbox" ${sub.notAdvancement ? "checked" : ""} onchange="toggleSubjectNotAdv(${sub.id})">
-                                    <span>Kein Vorrückungsfach</span>
-                                </label>
-                            </div>
-                            ${sub.type === "haupt" ? `
-                                <div class="setting-row">
-                                    <label for="ratio-${sub.id}">Verhältnis Schulaufgabe : kleiner LN</label>
-                                    <select id="ratio-${sub.id}" onchange="updateSubjectRatio(${sub.id}, this.value)">
-                                        <option value="2:1" ${sub.ratio === "2:1" ? "selected" : ""}>2 : 1</option>
-                                        <option value="1:1" ${sub.ratio === "1:1" ? "selected" : ""}>1 : 1</option>
-                                    </select>
-                                </div>` : ""}
-                            ${n ? `
-                                <div class="setting-row">
-                                    <span class="setting-label">Faktoren der Noten</span>
-                                    <div class="table-wrap">
-                                        <table>
-                                            <thead><tr><th>Note</th><th>Art</th><th>Faktor</th></tr></thead>
-                                            <tbody>${weightRows}</tbody>
-                                        </table>
-                                    </div>
-                                </div>` : ""}
-                            <button type="button" class="btn btn-danger btn-block" onclick="deleteSubject(${sub.id})">Fach löschen</button>
-                        </div>
-                    </details>
                 </article>`;
         }).join("");
     }
@@ -677,6 +811,7 @@ function renderSubjects() {
     }
 
     renderPresets();
+    updateToggleAllBtn();
 }
 
 // --- VERTEILUNG ---
@@ -784,7 +919,7 @@ function calibratedPrior(mean, sigma, mask) {
 let distTimer = null;
 function scheduleDist() {
     clearTimeout(distTimer);
-    distTimer = setTimeout(runDistribution, 50);
+    distTimer = setTimeout(runDistribution, 150);
 }
 
 function runDistribution() {
@@ -1211,7 +1346,8 @@ function loadSnapshot(id) {
     if (!confirm("Aktuelle Fächer werden durch diesen Stand ersetzt. Fortfahren?")) return;
 
     if (Array.isArray(snap.subjects)) {
-        subjects = JSON.parse(JSON.stringify(snap.subjects));
+        subjects = normalizeSubjects(JSON.parse(JSON.stringify(snap.subjects)));
+        openSubjects.clear();
         saveSubjects();
         renderSubjects();
     }
