@@ -1,4 +1,4 @@
-const VERSION = "notenapp-v5";
+const VERSION = "notenapp-v6";
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const ASSETS = [
@@ -19,8 +19,22 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-async function staleWhileRevalidate(event, cacheName) {
-  const cache = await caches.open(cacheName);
+// Eigene Dateien: immer erst Netz (frisch, auch am GitHub-Pages-Cache vorbei), offline aus dem Cache.
+// So passen index.html, app.js und styles.css nach einem Update immer zusammen.
+async function networkFirst(event) {
+  const cache = await caches.open(STATIC_CACHE);
+  try {
+    const res = await fetch(event.request, { cache: "no-cache" });
+    if (res && res.ok) cache.put(event.request, res.clone());
+    return res;
+  } catch (err) {
+    return (await cache.match(event.request)) || (await caches.match(event.request)) || Response.error();
+  }
+}
+
+// Fremde Bibliotheken/Schriften: schnell aus dem Cache, im Hintergrund aktualisieren.
+async function staleWhileRevalidate(event) {
+  const cache = await caches.open(RUNTIME_CACHE);
   const cached = await cache.match(event.request);
   const network = fetch(event.request)
     .then((res) => {
@@ -38,13 +52,13 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
 
   if (req.mode === "navigate") {
-    event.respondWith(fetch(req).catch(() => caches.match("./index.html")));
+    event.respondWith(fetch(req, { cache: "no-cache" }).catch(() => caches.match("./index.html")));
     return;
   }
   if (url.origin === self.location.origin) {
-    event.respondWith(staleWhileRevalidate(event, STATIC_CACHE));
+    event.respondWith(networkFirst(event));
   } else if (RUNTIME_HOSTS.includes(url.hostname)) {
-    event.respondWith(staleWhileRevalidate(event, RUNTIME_CACHE));
+    event.respondWith(staleWhileRevalidate(event));
   }
   // Alles andere (Supabase-API) geht direkt ins Netz, nie in den Cache.
 });
