@@ -28,24 +28,93 @@ function setStorageScope(userId) {
 let uidSeq = 0;
 function uid() { return Date.now() * 1000 + (uidSeq++ % 1000); }
 
+// =====================================================================
+// VORLAGEN – HIER KANNST DU SPÄTER ALLES ANPASSEN
+// key:             eindeutige Kennung, NICHT ändern (verknüpft angelegte Fächer mit der Vorlage)
+// type:            "haupt" (Schulaufgaben + kleine LN) oder "neben" (große LN + kleine LN)
+// ratio:           nur Hauptfach: Verhältnis Schulaufgabe : kleine LN ("2:1" oder "1:1")
+// notAdvancement:  true = "Kein Vorrückungsfach"
+// single:          true = keine Unterteilung, nur eine Notenart (z. B. Sport)
+// factors:         Standard-Faktor je Notenart (gilt für NEUE Noten in neu angelegten Fächern)
+//   Hauptfach: sa = Schulaufgabe, schr = klein schriftlich, muend = klein mündlich
+//   Nebenfach: gross = großer LN, schr = klein schriftlich, muend = klein mündlich
+// Bereits angelegte Fächer ändern sich nicht automatisch: im Fach auf "Fach aktualisieren" tippen.
+// =====================================================================
+const F_HAUPT = { sa: 1, schr: 1, muend: 1 };
+const F_NEBEN = { gross: 2, schr: 2, muend: 1 };          // schriftlich zählt wie groß
+const F_NEBEN_GLEICH = { gross: 2, schr: 1, muend: 1 };   // schriftlich = mündlich, groß doppelt
+const F_ALLE_EINS = { gross: 1, schr: 1, muend: 1 };
+const F_SINGLE = { note: 1 };
+
 const SUBJECT_PRESETS = [
-    { name: "Religion", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "R" },
-    { name: "Deutsch", type: "haupt", ratio: "2:1", notAdvancement: false, ratioLabel: "Hauptfach · 2:1", icon: "D" },
-    { name: "Englisch", type: "haupt", ratio: "2:1", notAdvancement: false, ratioLabel: "Hauptfach · 2:1", icon: "E" },
-    { name: "Französisch", type: "haupt", ratio: "2:1", notAdvancement: false, ratioLabel: "Hauptfach · 2:1", icon: "F" },
-    { name: "Mathe", type: "haupt", ratio: "2:1", notAdvancement: false, ratioLabel: "Hauptfach · 2:1", icon: "M" },
-    { name: "Informatik", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "I" },
-    { name: "Physik", type: "haupt", ratio: "1:1", notAdvancement: false, ratioLabel: "Hauptfach · 1:1", icon: "P" },
-    { name: "Chemie", type: "haupt", ratio: "1:1", notAdvancement: false, ratioLabel: "Hauptfach · 1:1", icon: "C" },
-    { name: "Biologie", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "B" },
-    { name: "Geschichte", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "G" },
-    { name: "Geographie", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "Geo" },
-    { name: "Wirtschaft und Recht", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "WR" },
-    { name: "Politik und Gesellschaft", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "PG" },
-    { name: "Kunst", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "K" },
-    { name: "Musik", type: "neben", ratio: "1:1", notAdvancement: false, ratioLabel: "Nebenfach", icon: "Mu" },
-    { name: "Sport", type: "neben", ratio: "1:1", notAdvancement: true, ratioLabel: "Nebenfach · Kein Vorrückungsfach", icon: "S" }
+    { key: "religion", name: "Religion", type: "neben", factors: F_NEBEN, icon: "R" },
+    { key: "deutsch", name: "Deutsch", type: "haupt", ratio: "2:1", factors: F_HAUPT, icon: "D" },
+    { key: "englisch", name: "Englisch", type: "haupt", ratio: "2:1", factors: F_HAUPT, icon: "E" },
+    { key: "franzoesisch", name: "Französisch", type: "haupt", ratio: "2:1", factors: F_HAUPT, icon: "F" },
+    { key: "mathe", name: "Mathe", type: "haupt", ratio: "2:1", factors: F_HAUPT, icon: "M" },
+    { key: "informatik", name: "Informatik", type: "neben", factors: F_NEBEN_GLEICH, icon: "I" },
+    { key: "physik", name: "Physik", type: "haupt", ratio: "1:1", factors: F_HAUPT, icon: "P" },
+    { key: "chemie", name: "Chemie", type: "haupt", ratio: "1:1", factors: F_HAUPT, icon: "C" },
+    { key: "biologie", name: "Biologie", type: "neben", factors: F_NEBEN, icon: "B" },
+    { key: "geschichte", name: "Geschichte", type: "neben", factors: F_NEBEN, icon: "G" },
+    { key: "geographie", name: "Geographie", type: "neben", factors: F_NEBEN, icon: "Geo" },
+    { key: "wr", name: "Wirtschaft und Recht", type: "neben", factors: F_NEBEN_GLEICH, icon: "WR" },
+    { key: "pug", name: "Politik und Gesellschaft", type: "neben", factors: F_NEBEN, icon: "PG" },
+    { key: "kunst", name: "Kunst", type: "neben", factors: F_ALLE_EINS, icon: "K" },
+    { key: "musik", name: "Musik", type: "neben", factors: F_NEBEN, icon: "Mu" },
+    { key: "sport", name: "Sport", type: "neben", single: true, notAdvancement: true, factors: F_SINGLE, icon: "S" }
 ];
+
+function presetLabel(p) {
+    return (p.type === "haupt" ? `Hauptfach · ${p.ratio}` : "Nebenfach") + (p.notAdvancement ? " · Kein Vorrückungsfach" : "");
+}
+
+// ===== Notenarten =====
+const KIND_LABELS = { sa: "Schulaufgabe", gross: "Großer LN", schr: "Klein · schriftlich", muend: "Klein · mündlich", note: "Note" };
+const KIND_SHORT = { sa: "SA", gross: "Groß", schr: "Schriftl.", muend: "Mündl.", note: "" };
+
+function kindsFor(sub) {
+    if (sub.single) return ["note"];
+    return sub.type === "haupt" ? ["sa", "schr", "muend"] : ["gross", "schr", "muend"];
+}
+
+function fallbackFactors(type, single) {
+    if (single) return { note: 1 };
+    return type === "haupt" ? { sa: 1, schr: 1, muend: 1 } : { gross: 2, schr: 2, muend: 1 };
+}
+
+
+// ===== Faktoren (auch ⅓ und ⅔) =====
+function fmtFactor(w) {
+    if (Math.abs(w - 1 / 3) < 1e-6) return "⅓";
+    if (Math.abs(w - 2 / 3) < 1e-6) return "⅔";
+    return String(Math.round(w * 100) / 100).replace(".", ",");
+}
+
+function factorInputValue(w) {
+    if (Math.abs(w - 1 / 3) < 1e-6) return "1/3";
+    if (Math.abs(w - 2 / 3) < 1e-6) return "2/3";
+    return String(Math.round(w * 100) / 100).replace(".", ",");
+}
+
+// Akzeptiert 2, 1,5, 0,33 (= ⅓), 0,66 / 0,67 (= ⅔), 1/3, 2/3, ⅓, ⅔
+function parseFactor(raw) {
+    const s = String(raw ?? "").trim().replace(/\s+/g, "").replace(",", ".");
+    if (s === "⅓") return 1 / 3;
+    if (s === "⅔") return 2 / 3;
+    const m = s.match(/^(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/);
+    if (m) {
+        const v = parseFloat(m[1]) / parseFloat(m[2]);
+        return isFinite(v) && v > 0 ? v : NaN;
+    }
+    if (!/^\d+(\.\d+)?$/.test(s)) return NaN;
+    const v = parseFloat(s);
+    if (!(v > 0)) return NaN;
+    const whole = Math.floor(v), frac = v - whole;
+    if (Math.abs(frac - 0.33) < 0.006) return whole + 1 / 3;
+    if (Math.abs(frac - 0.66) < 0.006 || Math.abs(frac - 0.67) < 0.006) return whole + 2 / 3;
+    return v;
+}
 
 let subjects = [];
 let currentUser = null;
@@ -380,29 +449,56 @@ function saveSubjects() {
     pushCloudState();
 }
 
+const SCHEMA = 3;
+
+// Alte Daten: früher "großer LN" -> jetzt "klein schriftlich", früher "kleiner LN" -> jetzt "klein mündlich"
+function shiftOldKind(k) {
+    if (k === "gross") return "schr";
+    if (k === "klein" || k === "schr") return "muend";
+    return k;
+}
+
 // Schützt die App vor kaputten oder fremden Daten (Cloud, Verlauf, localStorage)
 function normalizeSubjects(list) {
     if (!Array.isArray(list)) return [];
     return list.filter(s => s && typeof s === "object").map(s => {
         const type = s.type === "neben" ? "neben" : "haupt";
-        const kinds = type === "haupt" ? ["sa", "klein"] : ["gross", "klein"];
-        return {
+        const single = !!s.single;
+        const kinds = kindsFor({ type, single });
+        const fb = fallbackFactors(type, single);
+        const defW = {};
+        kinds.forEach(k => { const v = Number(s.defW && s.defW[k]); defW[k] = v > 0 ? v : fb[k]; });
+        const migrate = s.schema !== SCHEMA;
+
+        const nameKey = String(s.name ?? "").trim().toLowerCase();
+        const byName = SUBJECT_PRESETS.find(p => p.name.toLowerCase() === nameKey);
+        const preset = (typeof s.preset === "string" && s.preset) ? s.preset : (byName ? byName.key : undefined);
+
+        const out = {
             id: s.id ?? uid(),
             name: String(s.name ?? "Fach"),
             type,
+            single,
             ratio: s.ratio === "2:1" ? "2:1" : "1:1",
             notAdvancement: !!s.notAdvancement,
+            defW,
+            schema: SCHEMA,
             grades: (Array.isArray(s.grades) ? s.grades : [])
                 .filter(g => g && Number.isInteger(g.base) && g.base >= 1 && g.base <= 6)
-                .map(g => ({
-                    id: g.id ?? uid(),
-                    base: g.base,
-                    sign: g.sign === "+" || g.sign === "-" ? g.sign : "",
-                    label: String(g.label ?? g.base),
-                    kind: kinds.includes(g.kind) ? g.kind : kinds[0],
-                    weight: Number(g.weight) > 0 ? Number(g.weight) : 1
-                }))
+                .map(g => {
+                    const k = migrate ? shiftOldKind(g.kind) : g.kind;
+                    return {
+                        id: g.id ?? uid(),
+                        base: g.base,
+                        sign: g.sign === "+" || g.sign === "-" ? g.sign : "",
+                        label: String(g.label ?? g.base),
+                        kind: kinds.includes(k) ? k : kinds[0],
+                        weight: Number(g.weight) > 0 ? Number(g.weight) : 1
+                    };
+                })
         };
+        if (preset) out.preset = preset;
+        return out;
     });
 }
 
@@ -423,7 +519,7 @@ function renderPresets() {
                 <span class="preset-icon" aria-hidden="true">${esc(p.icon)}</span>
                 <span class="preset-text">
                     <span class="preset-title">${esc(p.name)}</span>
-                    <span class="preset-ratio">${esc(p.ratioLabel)}</span>
+                    <span class="preset-ratio">${esc(presetLabel(p))}</span>
                 </span>
                 <span class="preset-add" aria-hidden="true">${added ? "✓" : "+"}</span>
                 <span class="sr-only">${added ? "bereits angelegt" : "hinzufügen"}</span>
@@ -437,9 +533,13 @@ function addFromPreset(idx) {
     subjects.push({
         id: uid(),
         name: p.name,
+        preset: p.key,
+        schema: SCHEMA,
         type: p.type,
-        ratio: p.ratio,
-        notAdvancement: p.notAdvancement,
+        single: !!p.single,
+        ratio: p.type === "haupt" ? (p.ratio || "2:1") : "1:1",
+        notAdvancement: !!p.notAdvancement,
+        defW: { ...p.factors },
         grades: []
     });
     saveSubjects();
@@ -461,13 +561,17 @@ function addSubject() {
     const type = document.getElementById("newSubType").value;
     const ratio = document.getElementById("newSubRatio").value;
     const notAdv = document.getElementById("newSubNotAdv").checked;
+    const single = document.getElementById("newSubSingle").checked;
 
     const newSub = {
         id: uid(),
+        schema: SCHEMA,
         name,
         type,
         ratio: type === "haupt" ? ratio : "1:1",
         notAdvancement: notAdv,
+        single,
+        defW: fallbackFactors(type, single),
         grades: []
     };
     subjects.push(newSub);
@@ -475,6 +579,7 @@ function addSubject() {
 
     nameInput.value = "";
     document.getElementById("newSubNotAdv").checked = false;
+    document.getElementById("newSubSingle").checked = false;
     saveSubjects();
     renderSubjects();
     closeDialog("addSubjectDialog");
@@ -507,8 +612,8 @@ function updateSubjectRatio(subId, newRatio) {
 }
 
 function defaultWeight(sub, kind) {
-    if (sub.type === "haupt") return 1;        // SA:Ex-Verhältnis steckt schon in sub.ratio
-    return kind === "gross" ? 2 : 1;           // Nebenfach: großer LN doppelt
+    const v = Number(sub.defW && sub.defW[kind]);
+    return v > 0 ? v : fallbackFactors(sub.type, sub.single)[kind] || 1;
 }
 
 function onKindChange(subId) {
@@ -516,7 +621,7 @@ function onKindChange(subId) {
     if (!sub) return;
     const kind = document.getElementById(`kindSel-${subId}`).value;
     lastKind.set(subId, kind);
-    document.getElementById(`weightInp-${subId}`).value = defaultWeight(sub, kind);
+    document.getElementById(`weightInp-${subId}`).value = factorInputValue(defaultWeight(sub, kind));
 }
 
 function addGradeToSubject(subId) {
@@ -531,18 +636,20 @@ function addGradeToSubject(subId) {
     if (!parsed) { gInput.setAttribute("aria-invalid", "true"); gInput.focus(); return; }
     gInput.removeAttribute("aria-invalid");
 
-    const kind = kindSel.value;
-    let w = parseFloat(String(wInput.value).replace(",", "."));
+    const allowed = kindsFor(sub);
+    const kind = kindSel && allowed.includes(kindSel.value) ? kindSel.value : allowed[0];
+    let w = parseFactor(wInput.value);
     if (isNaN(w) || w <= 0) w = defaultWeight(sub, kind);
 
-    sub.grades.push({
+    const grade = {
         id: uid(),
         base: parsed.base,
         sign: parsed.sign,
         label: parsed.label,
         kind,
         weight: w
-    });
+    };
+    sub.grades.push(grade);
 
     gInput.value = "";
     lastKind.set(subId, kind);
@@ -557,12 +664,191 @@ function updateGradeWeight(subId, gradeId, rawW) {
     if (!sub) return;
     const g = sub.grades.find(x => x.id === gradeId);
     if (!g) return;
-    const w = parseFloat(String(rawW).replace(",", "."));
+    const w = parseFactor(rawW);
     if (!isNaN(w) && w > 0) {
         g.weight = w;
         saveSubjects();
         renderSubjects();
     }
+}
+
+function updateGradeKind(subId, gradeId, kind) {
+    const sub = subjects.find(s => s.id === subId);
+    const g = sub && sub.grades.find(x => x.id === gradeId);
+    if (!g || !kindsFor(sub).includes(kind)) return;
+    g.kind = kind;
+    saveSubjects();
+    renderSubjects();
+}
+
+function updateDefaultWeight(subId, kind, rawW) {
+    const sub = subjects.find(s => s.id === subId);
+    if (!sub || !kindsFor(sub).includes(kind)) return;
+    const w = parseFactor(rawW);
+    if (isNaN(w) || w <= 0) { renderSubjects(); return; }
+    sub.defW = { ...(sub.defW || {}), [kind]: w };
+    saveSubjects();
+    renderSubjects();
+    toast("Standard-Faktor gespeichert");
+}
+
+function applyDefaultsToAll(subId) {
+    const sub = subjects.find(s => s.id === subId);
+    if (!sub || !sub.grades.length) return;
+    if (!confirm("Alle vorhandenen Noten dieses Fachs auf die Standard-Faktoren setzen?")) return;
+    sub.grades.forEach(g => { g.weight = defaultWeight(sub, g.kind); });
+    saveSubjects();
+    renderSubjects();
+    toast("Faktoren übertragen");
+}
+
+// ===== Fach mit Vorlage abgleichen =====
+function findPreset(sub) {
+    return sub.preset ? (SUBJECT_PRESETS.find(p => p.key === sub.preset) || null) : null;
+}
+
+function mapKind(kind, type, single) {
+    if (single) return "note";
+    const toKinds = kindsFor({ type, single: false });
+    if (toKinds.includes(kind)) return kind;
+    if (kind === "sa" && type === "neben") return "gross";
+    if (kind === "gross" && type === "haupt") return "sa";
+    return toKinds[0];
+}
+
+// Berechnet, was sich beim Aktualisieren ändern würde (ändert selbst nichts)
+function buildPresetPlan(sub, overrideAll) {
+    const p = findPreset(sub);
+    if (!p) return null;
+    const type = p.type;
+    const single = !!p.single;
+    const ratio = type === "haupt" ? (p.ratio || "2:1") : "1:1";
+    const notAdvancement = !!p.notAdvancement;
+    const tKinds = kindsFor({ type, single });
+    const fb = fallbackFactors(type, single);
+    const defW = {};
+    tKinds.forEach(k => { const v = Number(p.factors && p.factors[k]); defW[k] = v > 0 ? v : fb[k]; });
+
+    const yn = (b) => (b ? "ja" : "nein");
+    const typeLabel = (t) => (t === "haupt" ? "Hauptfach" : "Nebenfach");
+    const settings = [];
+    if (sub.type !== type) settings.push({ label: "Fachart", from: typeLabel(sub.type), to: typeLabel(type) });
+    if (!!sub.single !== single) settings.push({ label: "Nur eine Notenart", from: yn(!!sub.single), to: yn(single) });
+    if (type === "haupt" && (sub.type !== "haupt" || sub.ratio !== ratio)) {
+        settings.push({ label: "Verhältnis SA : kleine LN", from: sub.type === "haupt" ? sub.ratio.replace(":", " : ") : "–", to: ratio.replace(":", " : ") });
+    }
+    if (!!sub.notAdvancement !== notAdvancement) settings.push({ label: "Kein Vorrückungsfach", from: yn(!!sub.notAdvancement), to: yn(notAdvancement) });
+
+    const oldKinds = kindsFor(sub);
+    const factors = [];
+    new Set([...oldKinds, ...tKinds]).forEach(k => {
+        const from = oldKinds.includes(k) ? defaultWeight(sub, k) : null;
+        const to = tKinds.includes(k) ? defW[k] : null;
+        if (from !== null && to !== null && Math.abs(from - to) < 1e-9) return;
+        factors.push({ label: KIND_LABELS[k], from, to });
+    });
+
+    const grades = sub.grades.map(g => {
+        const newKind = mapKind(g.kind, type, single);
+        const isDefault = Math.abs(g.weight - defaultWeight(sub, g.kind)) < 1e-9;
+        const newWeight = (isDefault || overrideAll) ? defW[newKind] : g.weight;
+        return {
+            g, newKind, newWeight, isDefault,
+            kindChanged: newKind !== g.kind,
+            weightChanged: Math.abs(newWeight - g.weight) > 1e-9
+        };
+    });
+    const changedGrades = grades.filter(x => x.kindChanged || x.weightChanged);
+    const customDiff = grades.filter(x => !x.isDefault && Math.abs(defW[x.newKind] - x.g.weight) > 1e-9);
+
+    return {
+        preset: p, type, single, ratio, notAdvancement, defW,
+        settings, factors, grades, changedGrades, customDiff,
+        hasChanges: settings.length + factors.length + changedGrades.length > 0
+    };
+}
+
+let updateSubId = null;
+let updateOverrideAll = false;
+
+function openPresetUpdate(subId) {
+    updateSubId = subId;
+    updateOverrideAll = false;
+    renderPresetUpdate();
+    openDialog("updateDialog");
+}
+
+function toggleUpdateOverride(on) {
+    updateOverrideAll = !!on;
+    renderPresetUpdate();
+    document.getElementById("updOverride")?.focus();
+}
+
+function renderPresetUpdate() {
+    const sub = subjects.find(s => s.id === updateSubId);
+    const body = document.getElementById("updateBody");
+    const btn = document.getElementById("updateConfirmBtn");
+    if (!sub || !body) return;
+    const plan = buildPresetPlan(sub, updateOverrideAll);
+    document.getElementById("updateTitle").textContent = `Fach aktualisieren: ${sub.name}`;
+    if (!plan) {
+        body.innerHTML = `<div class="info-box">Zu diesem Fach gibt es keine Vorlage mehr.</div>`;
+        btn.hidden = true;
+        return;
+    }
+    btn.hidden = !plan.hasChanges;
+
+    const f = (v) => (v === null ? "–" : fmtFactor(v));
+    const row = (label, from, to) => `<li><span>${esc(label)}</span><span class="upd-change">${esc(from)} <b aria-label="wird zu">→</b> ${esc(to)}</span></li>`;
+
+    let html = `<p class="hint">Vorlage: <strong>${esc(plan.preset.name)}</strong> · Deine Notenwerte bleiben unverändert, es ändern sich nur Einstellungen, Notenarten und Faktoren.</p>`;
+    if (!plan.hasChanges) html += `<div class="info-box">Dieses Fach entspricht bereits der Vorlage.</div>`;
+
+    if (plan.settings.length) {
+        html += `<h3 class="sheet-sub">Einstellungen</h3><ul class="update-list">${plan.settings.map(s => row(s.label, s.from, s.to)).join("")}</ul>`;
+    }
+    if (plan.factors.length) {
+        html += `<h3 class="sheet-sub">Standard-Faktoren (für neue Noten)</h3><ul class="update-list">${plan.factors.map(x => row(x.label, f(x.from), f(x.to))).join("")}</ul>`;
+    }
+    if (sub.grades.length) {
+        html += `<h3 class="sheet-sub">Eingetragene Noten</h3>`;
+        if (plan.changedGrades.length) {
+            const shown = plan.changedGrades.slice(0, 10);
+            html += `<p class="hint">${plan.changedGrades.length} von ${sub.grades.length} Noten ändern sich:</p><ul class="update-list">`;
+            html += shown.map(x => {
+                const parts = [];
+                if (x.kindChanged) parts.push(`${KIND_LABELS[x.g.kind]} → ${KIND_LABELS[x.newKind]}`);
+                if (x.weightChanged) parts.push(`Faktor ${fmtFactor(x.g.weight)} → ${fmtFactor(x.newWeight)}`);
+                return `<li><strong>${esc(x.g.label)}</strong><span class="upd-change">${esc(parts.join(" · "))}</span></li>`;
+            }).join("");
+            if (plan.changedGrades.length > shown.length) html += `<li class="hint">… und ${plan.changedGrades.length - shown.length} weitere</li>`;
+            html += `</ul>`;
+        } else {
+            html += `<p class="hint">Keine eingetragene Note muss geändert werden.</p>`;
+        }
+        if (plan.customDiff.length) {
+            html += `<label class="checkbox-row"><input type="checkbox" id="updOverride" ${updateOverrideAll ? "checked" : ""} onchange="toggleUpdateOverride(this.checked)"><span>Auch ${plan.customDiff.length} Noten mit eigenem Faktor überschreiben</span></label>`;
+            if (!updateOverrideAll) html += `<p class="hint">Noten mit selbst geändertem Faktor bleiben sonst unverändert.</p>`;
+        }
+    }
+    body.innerHTML = html;
+}
+
+function applyPresetUpdate() {
+    const sub = subjects.find(s => s.id === updateSubId);
+    const plan = sub && buildPresetPlan(sub, updateOverrideAll);
+    if (!plan || !plan.hasChanges) { closeDialog("updateDialog"); return; }
+    sub.type = plan.type;
+    sub.single = plan.single;
+    sub.ratio = plan.ratio;
+    sub.notAdvancement = plan.notAdvancement;
+    sub.defW = { ...plan.defW };
+    plan.grades.forEach(x => { x.g.kind = x.newKind; x.g.weight = x.newWeight; });
+    lastKind.delete(sub.id);
+    saveSubjects();
+    closeDialog("updateDialog");
+    renderSubjects();
+    toast(`${sub.name} aktualisiert`);
 }
 
 function removeGradeFromSubject(subId, gradeId) {
@@ -683,20 +969,21 @@ function renderSubjects() {
 
             const isOpen = openSubjects.has(sub.id);
             const n = sub.grades.length;
-            const kinds = sub.type === "haupt"
-                ? [["sa", "Schulaufgabe"], ["klein", "Kleiner LN"]]
-                : [["gross", "Großer LN"], ["klein", "Kleiner LN"]];
+            const kindKeys = kindsFor(sub);
             const wanted = lastKind.get(sub.id);
-            const curKind = kinds.some(k => k[0] === wanted) ? wanted : kinds[0][0];
-            const kindOptions = kinds.map(([v, t]) => `<option value="${v}" ${v === curKind ? "selected" : ""}>${t}</option>`).join("");
+            const curKind = kindKeys.includes(wanted) ? wanted : kindKeys[0];
+            const kindOptions = kindKeys.map(k => `<option value="${k}" ${k === curKind ? "selected" : ""}>${KIND_LABELS[k]}</option>`).join("");
             const defW = defaultWeight(sub, curKind);
+            const preset = findPreset(sub);
+            const updPlan = preset ? buildPresetPlan(sub, false) : null;
+            const hasUpd = !!(updPlan && updPlan.hasChanges);
 
             const pillsHtml = sub.grades.map(g => {
-                const kTxt = g.kind === "sa" ? "SA" : (g.kind === "gross" ? "Groß" : "Klein");
+                const kTxt = KIND_SHORT[g.kind] || "";
                 return `
                     <span class="grade-pill">
                         <strong>${esc(g.label)}</strong>
-                        <span class="cat-mini">${kTxt} · ×${fmt(g.weight, 1)}</span>
+                        <span class="cat-mini">${kTxt ? kTxt + " · " : ""}×${fmtFactor(g.weight)}</span>
                         <button type="button" class="del-x" aria-label="Note ${esc(g.label)} löschen" onclick="removeGradeFromSubject(${sub.id}, ${g.id})">×</button>
                     </span>`;
             }).join("");
@@ -704,8 +991,10 @@ function renderSubjects() {
             const weightRows = sub.grades.map(g => `
                 <tr>
                     <td><strong>${esc(g.label)}</strong></td>
-                    <td>${g.kind === "sa" ? "Schulaufgabe" : (g.kind === "gross" ? "Großer LN" : "Kleiner LN")}</td>
-                    <td><input type="number" class="inline-num" aria-label="Faktor für Note ${esc(g.label)}" step="0.5" min="0.5" value="${g.weight}" onchange="updateGradeWeight(${sub.id}, ${g.id}, this.value)"></td>
+                    ${sub.single ? "" : `<td><select class="inline-sel" aria-label="Art der Note ${esc(g.label)}" onchange="updateGradeKind(${sub.id}, ${g.id}, this.value)">${
+                        kindKeys.map(k => `<option value="${k}" ${k === g.kind ? "selected" : ""}>${KIND_LABELS[k]}</option>`).join("")
+                    }</select></td>`}
+                    <td><input type="text" inputmode="decimal" autocomplete="off" class="inline-num" aria-label="Faktor für Note ${esc(g.label)}" value="${factorInputValue(g.weight)}" onchange="updateGradeWeight(${sub.id}, ${g.id}, this.value)"></td>
                 </tr>`).join("");
 
             const subLine = [
@@ -720,7 +1009,7 @@ function renderSubjects() {
                         <button type="button" class="subject-toggle" aria-expanded="${isOpen}" aria-controls="subj-body-${sub.id}" onclick="toggleSubject(${sub.id})">
                             <span class="subject-info">
                                 <span class="subject-name">${esc(sub.name)}</span>
-                                <span class="subject-sub">${esc(subLine)}</span>
+                                <span class="subject-sub">${esc(subLine)}${hasUpd ? ` <span class="update-badge">Update</span>` : ""}</span>
                             </span>
                             <span class="subject-avg-num"><span class="sr-only">Schnitt </span>${avg !== null ? fmt(avg, 2) : "–"}</span>
                             <span class="chevron" aria-hidden="true"></span>
@@ -730,25 +1019,36 @@ function renderSubjects() {
                     <div class="subject-body" id="subj-body-${sub.id}" ${isOpen ? "" : "hidden"}>
                         ${n ? `<div class="grade-chips">${pillsHtml}</div>` : `<p class="hint empty-hint">Noch keine Noten eingetragen.</p>`}
 
-                        <div class="add-grade-row">
+                        <div class="add-grade-row${sub.single ? " single" : ""}">
                             <div class="field">
-                                <label for="gradeInp-${sub.id}">Note (1–6)</label>
+                                <label for="gradeInp-${sub.id}">Note</label>
                                 <input type="text" id="gradeInp-${sub.id}" inputmode="text" autocomplete="off" autocapitalize="off" enterkeyhint="done" onkeydown="if(event.key==='Enter')addGradeToSubject(${sub.id})">
                             </div>
+                            ${sub.single ? "" : `
                             <div class="field">
                                 <label for="kindSel-${sub.id}">Art</label>
                                 <select id="kindSel-${sub.id}" onchange="onKindChange(${sub.id})">${kindOptions}</select>
-                            </div>
+                            </div>`}
                             <div class="field">
                                 <label for="weightInp-${sub.id}">Faktor</label>
-                                <input type="number" id="weightInp-${sub.id}" step="0.5" min="0.5" value="${defW}">
+                                <input type="text" id="weightInp-${sub.id}" inputmode="decimal" autocomplete="off" value="${factorInputValue(defW)}">
                             </div>
                             <button type="button" class="btn btn-primary add-btn" onclick="addGradeToSubject(${sub.id})" aria-label="Note zu ${esc(sub.name)} eintragen">Eintragen</button>
                         </div>
 
+                        <p class="hint tend-hint">Faktoren wie 0,33 und 0,66 zählen als ⅓ und ⅔.</p>
+
                         <details class="panel subject-settings" ${openWeightPanels.has(sub.id) ? "open" : ""} ontoggle="rememberPanel(${sub.id}, this)">
                             <summary>Einstellungen</summary>
                             <div class="panel-body">
+                                ${preset ? `
+                                    <div class="setting-row">
+                                        <span class="setting-label">Vorlage</span>
+                                        <div class="preset-link">
+                                            <span class="hint">Aus Vorlage „${esc(preset.name)}“${hasUpd ? " · Änderungen verfügbar" : ""}</span>
+                                            <button type="button" class="btn btn-sm${hasUpd ? " btn-primary" : ""}" onclick="openPresetUpdate(${sub.id})">Fach aktualisieren</button>
+                                        </div>
+                                    </div>` : ""}
                                 <div class="setting-row">
                                     <label class="checkbox-row">
                                         <input type="checkbox" ${sub.notAdvancement ? "checked" : ""} onchange="toggleSubjectNotAdv(${sub.id})">
@@ -763,12 +1063,23 @@ function renderSubjects() {
                                             <option value="1:1" ${sub.ratio === "1:1" ? "selected" : ""}>1 : 1</option>
                                         </select>
                                     </div>` : ""}
+                                <div class="setting-row">
+                                    <span class="setting-label">Standard-Faktor für neue Noten</span>
+                                    <div class="factor-grid">
+                                        ${kindKeys.map(k => `
+                                            <div class="field">
+                                                <label for="defW-${sub.id}-${k}">${sub.single ? "Faktor" : KIND_LABELS[k]}</label>
+                                                <input type="text" inputmode="decimal" autocomplete="off" id="defW-${sub.id}-${k}" value="${factorInputValue(defaultWeight(sub, k))}" onchange="updateDefaultWeight(${sub.id}, '${k}', this.value)">
+                                            </div>`).join("")}
+                                    </div>
+                                    ${n ? `<button type="button" class="btn btn-sm" onclick="applyDefaultsToAll(${sub.id})">Auf vorhandene Noten übertragen</button>` : ""}
+                                </div>
                                 ${n ? `
                                     <div class="setting-row">
                                         <span class="setting-label">Faktoren der Noten</span>
                                         <div class="table-wrap">
                                             <table>
-                                                <thead><tr><th>Note</th><th>Art</th><th>Faktor</th></tr></thead>
+                                                <thead><tr><th>Note</th>${sub.single ? "" : "<th>Art</th>"}<th>Faktor</th></tr></thead>
                                                 <tbody>${weightRows}</tbody>
                                             </table>
                                         </div>
