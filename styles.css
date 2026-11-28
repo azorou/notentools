@@ -506,6 +506,18 @@ input[aria-invalid="true"] { border-color: var(--warn-text); box-shadow: 0 0 0 3
     .add-grade-row .add-btn { grid-column: 1 / -1; }
 }
 
+.add-grade-row.single { grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr) auto; }
+@media (max-width: 520px) {
+    .add-grade-row.single { grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr); }
+}
+.tend-hint { margin-top: 8px; }
+.factor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 4px; }
+.factor-grid .field { margin-bottom: 8px; }
+.factor-grid label { font-size: 0.72rem; }
+.inline-sel { min-height: 36px !important; padding: 4px 6px !important; font-size: 14px !important; }
+@media (max-width: 760px) { .inline-sel { font-size: 16px !important; } }
+.check-stack { display: grid; gap: 2px; margin-bottom: 12px; }
+
 details.subject-settings { margin-top: 12px; }
 
 .inline-num { width: 76px !important; min-height: 36px !important; padding: 4px 8px !important; text-align: right; }
@@ -808,3 +820,32 @@ tbody tr:last-child td { border-bottom: none; }
 @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
 }
+
+/* ===== Vorlagen-Update ===== */
+.update-badge {
+    display: inline-block;
+    margin-left: 4px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: var(--primary);
+    color: var(--on-primary);
+    font-size: 0.66rem;
+    font-weight: 700;
+    vertical-align: middle;
+}
+.preset-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.update-list { list-style: none; margin: 0 0 10px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.update-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    border-bottom: 1px solid var(--border);
+}
+.update-list li:last-child { border-bottom: none; }
+.upd-change { text-align: right; color: var(--muted); }
+.upd-change b { color: var(--primary); }
+.sheet-actions { display: flex; gap: 8px; margin-top: 16px; }
+.sheet-actions .btn { flex: 1; }
