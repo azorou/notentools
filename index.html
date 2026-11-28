@@ -37,11 +37,11 @@
         <form id="authForm" onsubmit="handleAuthSubmit(event)">
             <div class="field">
                 <label for="authUsername">Benutzername</label>
-                <input type="text" id="authUsername" autocomplete="username" autocapitalize="none" required placeholder="dein_name">
+                <input type="text" id="authUsername" autocomplete="username" autocapitalize="none" required>
             </div>
             <div class="field">
-                <label for="authPassword">Passwort</label>
-                <input type="password" id="authPassword" autocomplete="current-password" required minlength="6" placeholder="Mind. 6 Zeichen">
+                <label for="authPassword">Passwort <span class="label-hint">(mind. 6 Zeichen)</span></label>
+                <input type="password" id="authPassword" autocomplete="current-password" required minlength="6">
             </div>
             <p class="hint" id="authHint" hidden>Du brauchst keine E-Mail. Merke dir dein Passwort gut, denn ohne E-Mail kann es nicht zurückgesetzt werden.</p>
             <button type="submit" class="btn btn-primary btn-block" id="authSubmitBtn">Anmelden</button>
@@ -88,6 +88,20 @@
                 <button type="button" class="btn btn-primary" onclick="openDialog('addSubjectDialog')">+ Fach</button>
             </div>
 
+            <div class="list-toolbar" id="subjectToolbar" hidden>
+                <div class="sort-field">
+                    <label for="subjectSort">Sortieren</label>
+                    <select id="subjectSort" onchange="setSubjectSort(this.value)">
+                        <option value="manual">Eigene Reihenfolge</option>
+                        <option value="name">Name A–Z</option>
+                        <option value="best">Beste zuerst</option>
+                        <option value="worst">Schlechteste zuerst</option>
+                        <option value="haupt">Hauptfächer zuerst</option>
+                    </select>
+                </div>
+                <button type="button" class="btn btn-sm" id="toggleAllBtn" onclick="toggleAllSubjects()">Alle aufklappen</button>
+            </div>
+
             <div id="subjectsContainer"></div>
         </section>
 
@@ -102,16 +116,16 @@
                 <div class="form-grid-2">
                     <div class="field">
                         <label for="distN">Arbeiten (N)</label>
-                        <input type="number" id="distN" min="1" max="60" step="1" inputmode="numeric" placeholder="25" oninput="scheduleDist()">
+                        <input type="number" id="distN" min="1" max="60" step="1" inputmode="numeric" oninput="scheduleDist()">
                     </div>
                     <div class="field">
                         <label for="distAvg">Schnitt (Ø)</label>
-                        <input type="text" id="distAvg" inputmode="decimal" placeholder="2,68" oninput="scheduleDist()">
+                        <input type="text" id="distAvg" inputmode="decimal" oninput="scheduleDist()">
                     </div>
                 </div>
                 <div class="field">
                     <label for="distKnown">Bekannte Noten <span class="label-hint">(optional, Ziffern 1–6)</span></label>
-                    <input type="text" id="distKnown" inputmode="numeric" placeholder="312243" oninput="scheduleDist()">
+                    <input type="text" id="distKnown" inputmode="numeric" oninput="scheduleDist()">
                 </div>
                 <div class="field">
                     <label for="distSigma">Streuung: <strong id="distSigmaVal">1,00</strong></label>
@@ -177,11 +191,11 @@
                 <div class="form-grid-2">
                     <div class="field">
                         <label for="keyMaxPts">Maximalpunkte</label>
-                        <input type="number" id="keyMaxPts" min="0.5" step="0.5" inputmode="decimal" placeholder="60" oninput="syncKeyFromMax()">
+                        <input type="number" id="keyMaxPts" min="0.5" step="0.5" inputmode="decimal" oninput="syncKeyFromMax()">
                     </div>
                     <div class="field">
                         <label for="keyGotPts">Eigene Punkte</label>
-                        <input type="number" id="keyGotPts" min="0" step="0.5" inputmode="decimal" placeholder="46" oninput="renderKeyTable()">
+                        <input type="number" id="keyGotPts" min="0" step="0.5" inputmode="decimal" oninput="renderKeyTable()">
                     </div>
                 </div>
                 <div id="keySummary" aria-live="polite"></div>
@@ -205,15 +219,15 @@
             </div>
 
             <div class="card tool-panel" data-tool="compare" hidden>
-                <p class="section-desc" style="margin-top:0;">Zwei Notenreihen direkt gegenüberstellen.</p>
+                <p class="section-desc" style="margin-top:0;">Zwei Notenreihen gegenüberstellen. Noten als Ziffern 1–6 ohne Trennzeichen eingeben.</p>
                 <div class="form-grid-2">
                     <div class="field">
                         <label for="cmpA">Reihe A</label>
-                        <input type="text" id="cmpA" inputmode="numeric" placeholder="122334" oninput="updateComparison()">
+                        <input type="text" id="cmpA" inputmode="numeric" oninput="updateComparison()">
                     </div>
                     <div class="field">
                         <label for="cmpB">Reihe B</label>
-                        <input type="text" id="cmpB" inputmode="numeric" placeholder="223344" oninput="updateComparison()">
+                        <input type="text" id="cmpB" inputmode="numeric" oninput="updateComparison()">
                     </div>
                 </div>
                 <div id="cmpOutput" aria-live="polite"></div>
@@ -226,9 +240,9 @@
                 <h2 id="h-archive">Verlauf</h2>
             </div>
             <div class="card">
-                <label for="archiveName">Aktuellen Stand speichern</label>
+                <label for="archiveName">Aktuellen Stand speichern <span class="label-hint">(Name optional, sonst Datum)</span></label>
                 <div class="save-row">
-                    <input type="text" id="archiveName" placeholder="Name, z. B. Halbjahr 1">
+                    <input type="text" id="archiveName">
                     <button type="button" class="btn btn-primary" onclick="saveFullSnapshot()">Speichern</button>
                 </div>
             </div>
@@ -273,7 +287,7 @@
         <form onsubmit="event.preventDefault(); addSubject();">
             <div class="field">
                 <label for="newSubName">Name</label>
-                <input type="text" id="newSubName" placeholder="z. B. Latein" autocomplete="off">
+                <input type="text" id="newSubName" autocomplete="off">
             </div>
             <div class="form-grid-2">
                 <div class="field">
